@@ -77,7 +77,7 @@ func init() {
 			"candaya@google.com", // Optional test contact
 		},
 		Attr:         []string{"group:mainline", "informational"},
-		Data:         []string{"AMACE_app_list.tsv"},
+		Data:         []string{"AMACE_app_list.tsv", "AMACE_secret.txt"},
 		SoftwareDeps: []string{"chrome", "android_vm"},
 		Timeout:      24 * 60 * time.Minute,
 		Fixture:      "arcBootedWithPlayStore",
@@ -111,7 +111,12 @@ func AMACE(ctx context.Context, s *testing.State) {
 	if err != nil {
 		s.Fatal("Failed to get Arc Verson for device")
 	}
-	s.Logf("arcV: %s, build: %s, device: %s", arcV, buildInfo, deviceInfo)
+
+	secret, err := loadSecret(s)
+	if err != nil {
+		s.Fatal("Failed to get secret")
+	}
+	s.Logf("arcV: %s, build: %s, device: %s, secret: %s", arcV, buildInfo, deviceInfo, secret)
 
 	// cleanupCtx := ctx
 	ctx, cancel := ctxutil.Shorten(ctx, 5*time.Second)
@@ -182,7 +187,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("✅ App is O4C: ", appPack)
 		}
 		s.Logf("🚀 Pushing result for run id: %s - %v", runID.String(), ar)
-		res, err := postData(ar, s, buildInfo, deviceInfo)
+		res, err := postData(ar, s, buildInfo, secret, deviceInfo)
 		if err != nil {
 			s.Log("Errir posting: ", err)
 
@@ -221,7 +226,7 @@ func getBuildInfo(ctx context.Context, s *testing.State, a *arc.ARC) (string, er
 	return string(output), nil
 }
 
-func postData(appResults AppResult, s *testing.State, buildInfo, deviceInfo string) (string, error) {
+func postData(appResults AppResult, s *testing.State, buildInfo, secret, deviceInfo string) (string, error) {
 	url := "http://192.168.1.229:3000/api/amaceResult"
 	// url := "https://appval-387223.wl.r.appspot.com/api/amaceResult"
 
@@ -254,7 +259,7 @@ func postData(appResults AppResult, s *testing.State, buildInfo, deviceInfo stri
 
 	// Set the Content-Type header
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "7cYt4FP9CDDG6i5tX5R3waR/HIwARyAu8KuZKlPhjZU=")
+	request.Header.Set("Authorization", secret)
 
 	// Send the POST request
 	client := &http.Client{}
@@ -309,6 +314,15 @@ func launchApp(ctx context.Context, s *testing.State, arc *arc.ARC, pname string
 	}
 	s.Log("Output: ", output)
 	return nil
+}
+
+func loadSecret(s *testing.State) (string, error) {
+	b, err := ioutil.ReadFile(s.DataPath("AMACE_secret.txt"))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return "", err
+	}
+	return string(b), nil
 }
 
 func loadAppList(s *testing.State) ([]AppPackage, error) {
