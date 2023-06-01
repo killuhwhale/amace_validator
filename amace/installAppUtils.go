@@ -77,6 +77,7 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		permissionsText       = "needs access to"
 		versionText           = "Your device isn't compatible with this version."
 		versionTextOldVersion = "This app isn't available for your device because it was made for an older version of Android."
+		countryNA             = "This item isn't available in your country."
 		linkPaypalAccountText = "Want to link your PayPal account.*"
 
 		acceptButtonText   = "accept"
@@ -137,45 +138,36 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 			return testing.PollBreak(errors.New("too many attempst: app failed to install"))
 		}
 		pollTries++
-		//TODO create a counter to track num of attempts through this loop, 3 max. Then break Poll w/ error. Add new Status Failed to install.
 		if err := findAndDismissErrorDialog(ctx, d); err != nil {
 			return testing.PollBreak(err)
 		}
 
 		// If the version isn't compatible with the device, no install button will be available.
 		// Fail immediately.
-		if err := d.Object(ui.TextMatches(versionText)).Exists(ctx); err == nil {
-			return testing.PollBreak(errors.New("app not compatible with this device"))
-		}
 		testing.ContextLog(ctx, "Checking Old version text ")
 		if err := d.Object(ui.TextMatches(versionTextOldVersion)).Exists(ctx); err == nil {
 			return testing.PollBreak(errors.New("app not compatible with this device"))
 		}
-		// testing.ContextLog(ctx, "Checking Someting went wrong : try again ")
-		// if err := d.Object(ui.TextMatches(versionTextOldVersion)).Exists(ctx); err == nil {
-		// 	return testing.PollBreak(errors.New("app not compatible with this device"))
-		// }
+		testing.ContextLog(ctx, "Checking valid country ")
+		if err := d.Object(ui.TextMatches(countryNA)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("app not availble in your country"))
+		}
+		testing.ContextLog(ctx, "App is valid in country ")
 
-		// If retry button appears, reopen the Play Store page by sending the same intent again.
-		// (It tends to work better than clicking the retry button.)
-
-		testing.ContextLog(ctx, "Checking Someting went wrong : try again or retry ")
-		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", retryButtonText, tryAgainButtonText))).Exists(ctx); err == nil {
-			testing.ContextLogf(ctx, "Retry button is shown. Trying to reopen the Play Store. Total attempts so far: %d (%d)", tries, tryLimit)
-			if tryLimit == -1 || tries < tryLimit {
-				tries++
-				testing.ContextLogf(ctx, "Retry button is shown. Trying to reopen the Play Store. Total attempts so far: %d", tries)
-				if err := openAppPage(ctx, a, pkgName); err != nil {
-					return err
-				}
-			} else {
-				return testing.PollBreak(errors.Errorf("reopen Play Store attempt limit of %d times", tryLimit))
+		// Make sure we are still on the Play Store installation page by checking whether the "open" or "play" button exists.
+		// If not, reopen the Play Store page by sending the same intent again.
+		testing.ContextLog(ctx, "Checking for Open/Play button ")
+		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", openButtonText, playButtonText))).Exists(ctx); err != nil {
+			// Check for version error
+			testing.ContextLog(ctx, "App installation page disappeared; reopen it")
+			if err := openAppPage(ctx, a, pkgName); err != nil {
+				return err
 			}
 		}
 
-		// TODO check for a price. Check for '$' in the text?
 		// If the install or update button is enabled, click it.
-		if opButton, err := findActionButton(ctx, d, btnText, 2*time.Second); err == nil {
+		if opButton, err := FindActionButton(ctx, d, btnText, 2*time.Second); err == nil {
+			testing.ContextLog(ctx, "Found install button")
 			// Limit number of tries to help mitigate Play Store rate limiting across test runs.
 			if tryLimit == -1 || tries < tryLimit {
 				tries++
@@ -233,11 +225,6 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 			}
 		}
 
-		// Grant permissions if necessary.
-		if err := findAndDismissDialog(ctx, d, permissionsText, acceptButtonText); err != nil {
-			return testing.PollBreak(err)
-		}
-
 		// There are two possible of descriptions on the Play Store installation page.
 		// One is "Download in progress", the other is "Install in progress".
 		// If one of them exists, that means the installation is still in progress.
@@ -261,16 +248,19 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 			return testing.PollBreak(errors.New("Need to purchase app"))
 		}
 
-		// Make sure we are still on the Play Store installation page by checking whether the "open" or "play" button exists.
-		// If not, reopen the Play Store page by sending the same intent again.
-		testing.ContextLog(ctx, "Checking for Open/Play button ")
-		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", openButtonText, playButtonText))).Exists(ctx); err != nil {
-
-			// Check for version error
-
-			testing.ContextLog(ctx, "App installation page disappeared; reopen it")
-			if err := openAppPage(ctx, a, pkgName); err != nil {
-				return err
+		// If retry button appears, reopen the Play Store page by sending the same intent again.
+		// (It tends to work better than clicking the retry button.)
+		testing.ContextLog(ctx, "Checking Someting went wrong : try again or retry ")
+		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", retryButtonText, tryAgainButtonText))).Exists(ctx); err == nil {
+			testing.ContextLogf(ctx, "Retry button is shown. Trying to reopen the Play Store. Total attempts so far: %d (%d)", tries, tryLimit)
+			if tryLimit == -1 || tries < tryLimit {
+				tries++
+				testing.ContextLogf(ctx, "Retry button is shown. Trying to reopen the Play Store. Total attempts so far: %d", tries)
+				if err := openAppPage(ctx, a, pkgName); err != nil {
+					return err
+				}
+			} else {
+				return testing.PollBreak(errors.Errorf("reopen Play Store attempt limit of %d times", tryLimit))
 			}
 		}
 
@@ -300,8 +290,8 @@ func openAppPage(ctx context.Context, a *arc.ARC, pkgName string) error {
 	return nil
 }
 
-// findActionButton finds the action button on app detail page.
-func findActionButton(ctx context.Context, d *ui.Device, actionText string, timeout time.Duration) (*ui.Object, error) {
+// FindActionButton finds the action button on app detail page.
+func FindActionButton(ctx context.Context, d *ui.Device, actionText string, timeout time.Duration) (*ui.Object, error) {
 	var result *ui.Object
 
 	err := testing.Poll(ctx, func(ctx context.Context) error {

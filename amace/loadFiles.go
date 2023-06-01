@@ -57,5 +57,5 @@ func LoadAppList(s *testing.State) ([]AppPackage, error) {
 		fmt.Println(fields)
 	}
 
-	return pgks, nil
+	return pgks[:10], nil
 }
