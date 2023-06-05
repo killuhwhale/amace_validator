@@ -1,3 +1,7 @@
+################################
+#   Incomplete. Do not use.
+#############################
+
 # Mkdir if DNE $CHROMEOS_SRC/src/platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace/
 directory="$CHROMEOS_SRC/src/platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace/"
 if [ ! -d "$directory" ]; then
