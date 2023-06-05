@@ -126,12 +126,12 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 	btnText := installButtonText
 
 	// Wait for the app to install or update.
-	testing.ContextLogf(ctx, "Waiting for app to install")
+	testing.ContextLog(ctx, "Waiting for app to install")
 
 	tries := 0
 	pollTries := 0
 
-	testing.ContextLogf(ctx, "Polling app to install process return Poll")
+	testing.ContextLog(ctx, "Polling app to install process return Poll")
 	return testing.Poll(ctx, func(ctx context.Context) error {
 		testing.ContextLog(ctx, "🔥 Current Poll Tries:  ", pollTries)
 		if pollTries > 2 {
@@ -317,7 +317,7 @@ func FindActionButton(ctx context.Context, d *ui.Device, actionText string, time
 		if err := actionButton.WaitForExists(ctx, time.Second); err == nil {
 			testing.ContextLog(ctx, "Found the button")
 			result = actionButton
-			return errors.New("Found price button")
+			return errors.New("found price button")
 		}
 
 		viewClass = ui.ClassName("android.view.View")
@@ -325,7 +325,7 @@ func FindActionButton(ctx context.Context, d *ui.Device, actionText string, time
 		if err := actionView.WaitForExists(ctx, time.Second); err == nil {
 			testing.ContextLog(ctx, "Found the view")
 			result = actionView
-			return errors.New("Found price button")
+			return errors.New("found price button")
 		}
 
 		return errors.New("Did not find the button")

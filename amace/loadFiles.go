@@ -1,6 +1,8 @@
 // Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+// Package amace does some light work.
 package amace
 
 import (
@@ -28,15 +30,9 @@ func LoadSecret(s *testing.State) (string, error) {
 }
 
 // LoadAppList loads list to use to check status of AMAC-E
-func LoadAppList(s *testing.State) ([]AppPackage, error) {
-	// homeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	fmt.Println("Error:", err)
-	// 	return nil, err
-	// }
-	// filePath := filepath.Join("~/chromiumos", "app_list.tsv")
-	// // Read the contents of the file
-	// content, err := ioutil.ReadFile(filePath)
+func LoadAppList(s *testing.State, startat string) ([]AppPackage, error) {
+	idx := 0
+
 	b, err := ioutil.ReadFile(s.DataPath("AMACE_app_list.tsv"))
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -50,12 +46,17 @@ func LoadAppList(s *testing.State) ([]AppPackage, error) {
 	fmt.Println(fileContent)
 	var pgks []AppPackage
 	lines := strings.Split(fileContent, "\n")
+	s.Log("Startat param: ", startat)
 	// Split each line by tabs
-	for _, line := range lines {
+	for lineIdx, line := range lines {
 		fields := strings.Split(line, "\t")
 		pgks = append(pgks, AppPackage{fields[1], fields[0]})
 		fmt.Println(fields)
+		if fields[1] == startat {
+			s.Logf("Starting at(%s): %s (matched: %s)", idx, fields[1], startat)
+			idx = lineIdx
+		}
 	}
 
-	return pgks[:10], nil
+	return pgks[idx:], nil
 }

@@ -35,6 +35,8 @@ const (
 	IsLockedTAmacE // 9
 	// IsAmacE indicates IsAmacE in all windows and modes
 	IsAmacE // 10
+	// PWA indicates app is PWA (TikTok)
+	PWA // 11
 )
 
 func (ap *AppStatus) String() string {
@@ -45,9 +47,10 @@ func (ap *AppStatus) String() string {
 type AppResult struct {
 	App    AppPackage
 	RunID  string
-	RunTS  int64
+	RunTS  string
 	AppTS  int64
 	Status AppStatus
+	IsGame bool
 }
 
 func (ar AppResult) String() string {

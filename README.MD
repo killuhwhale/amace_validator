@@ -8,18 +8,17 @@ If you need to delete your chroot, use cros_sdk --delete to delete it properly. 
 # Update Chroot
  (inside) ./update_chroot
 
-
-
+Replace ALL isntaces of testacct@gmail.com:PASSWORD in code with real info.
 
 
  cd ${CHROMEOS_SRC}/src/platform/
 code ./tast-tests ./tast
 
 ## Push data to server(default "https://appval-387223.wl.r.appspot.com/api/amaceResult")
-tast -verbose run  -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:password root@192.168.1.238 arc.AMACE
+tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
 
 ## Push data to localhost (or other url)
-tast -verbose run -var=arc.AccessVars.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:password root@192.168.1.238 arc.AMACE
+tast -verbose run -var=arc.AccessVars.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
 
 
 Make sure in put data file does not have trailing line.

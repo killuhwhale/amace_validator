@@ -5,24 +5,41 @@
 package amace
 
 import (
+	"chromiumos/tast/common/android/ui"
 	"chromiumos/tast/local/arc"
+	"chromiumos/tast/local/chrome"
+	"chromiumos/tast/local/chrome/uiauto"
+	"chromiumos/tast/local/chrome/uiauto/nodewith"
+	"chromiumos/tast/local/chrome/uiauto/ossettings"
+	"chromiumos/tast/local/chrome/uiauto/role"
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
+	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
 )
 
-// DeviceOnPower turns on the power
-func DeviceOnPower(ctx context.Context, s *testing.State, a *arc.ARC) (string, error) {
-	cmd := a.Command(ctx, "settings", "put", "global", "stay_on_while_plugged_in", "3")
-	output, err := cmd.Output()
+// SetDeviceNoSleepOnPower set the setttings for a run.
+func SetDeviceNoSleepOnPower(ctx context.Context, d *ui.Device, tconn *chrome.TestConn, s *testing.State, cr *chrome.Chrome) error {
+	ui := uiauto.New(tconn)
+	settings, err := ossettings.LaunchAtPage(ctx, tconn, nodewith.Name("Power").Role(role.Link))
 	if err != nil {
-		return "", err
+		return errors.Wrap(err, "failed to launch os-settings Power page")
 	}
-	s.Log("Output: ", output)
-	return string(output), nil
+	defer settings.Close(ctx)
+
+	idleActionWhileCharging := nodewith.Name("Idle action while charging").Role(role.ComboBoxSelect)
+	if err := ui.LeftClick(idleActionWhileCharging)(ctx); err != nil {
+		return errors.Wrap(err, "failed to left click on idle action while charging in combo box")
+	}
+
+	keepDisplayOnListBox := nodewith.Name("Keep display on").Role(role.ListBoxOption)
+	if err := ui.LeftClick(keepDisplayOnListBox)(ctx); err != nil {
+		return errors.Wrap(err, "failed to left click on keep display in list box")
+	}
+
+	return nil
 }
 
 // GetDeviceInfo gets information for DeviceInfo
@@ -44,7 +61,7 @@ func GetBuildInfo(ctx context.Context, s *testing.State, a *arc.ARC) (string, er
 		return "", err
 	}
 	s.Log("Output: ", output)
-	return string(output), nil
+	return strings.ReplaceAll(string(output), "\n", ""), nil
 }
 
 // IsGame detects if an app is a game or not.
@@ -54,29 +71,38 @@ func IsGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName strin
 	if err != nil {
 		return false, err
 	}
+	for _, str := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if strings.HasPrefix(str, "SurfaceView") && strings.Contains(str, packageName) {
+			return true, nil
+		}
+		fmt.Println("String does not match the criteria.")
+	}
+	// str := "SurfaceView - com.roblox.client/com.roblox.client.ActivityNativeMain#0"
 
 	// Define the regular expression pattern
-	patternWithSurface := fmt.Sprintf(`^SurfaceView\s*-\s*%s/[\w.#]*$`)
-	reSurface := regexp.MustCompile(patternWithSurface)
+	// patternWithSurface := fmt.Sprintf(`^SurfaceView\s*-\s*%s/[\w.#]*$`, packageName)
+	// reSurface := regexp.MustCompile(patternWithSurface)
 
-	// Execute the adb shell command to get the list of surfaces
-	surfacesList := strings.TrimSpace(string(output))
-	last := ""
+	// // Execute the adb shell command to get the list of surfaces
+	// surfacesList := strings.TrimSpace(string(output))
+	// last := ""
 
-	// Find matches using the regular expression pattern
-	matches := reSurface.FindAllStringSubmatch(surfacesList, -1)
-	for _, match := range matches {
-		fmt.Println("Found surface match:", match)
-		last = match[0]
-	}
+	// // Find matches using the regular expression pattern
+	// matches := reSurface.FindAllStringSubmatch(surfacesList, -1)
+	// s.Log("SurfacesList: ", surfacesList)
+	// s.Log("Matches: ", matches)
+	// for _, match := range matches {
+	// 	s.Log("Found surface match:", match)
+	// 	last = match[0]
+	// }
 
-	if last != "" {
-		if packageName != last {
-			fmt.Println("Found match for wrong package.")
-			return false, nil
-		}
-		return true, nil
-	}
+	// if last != "" {
+	// 	if packageName != last {
+	// 		s.Log("Found match for wrong package")
+	// 		return false, nil
+	// 	}
+	// 	return true, nil
+	// }
 
 	return false, nil
 }
