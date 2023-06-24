@@ -14,10 +14,13 @@ import (
 	"chromiumos/tast/local/chrome/uiauto/role"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
+	"golang.org/x/net/html"
 )
 
 // SetDeviceNoSleepOnPower set the setttings for a run.
@@ -50,7 +53,7 @@ func GetDeviceInfo(ctx context.Context, s *testing.State, a *arc.ARC) (string, e
 		return "", err
 	}
 	s.Log("Output: ", output)
-	return string(output), nil
+	return strings.ReplaceAll(string(output), "\n", ""), nil
 }
 
 // GetBuildInfo gets information for BuildInfo
@@ -104,5 +107,55 @@ func IsGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName strin
 	// 	return true, nil
 	// }
 
+	// Check Google Play for h2 About this Game
+	exists, err := checkAboutGameTagExists(packageName)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return false, err
+	}
+
+	if exists {
+		return true, nil
+	}
+
 	return false, nil
+}
+
+func checkAboutGameTagExists(packageName string) (bool, error) {
+	url := "https://play.google.com/store/apps/details?id=" + packageName
+
+	// Send GET request
+	resp, err := http.Get(url)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	// Parse HTML
+	doc, err := html.Parse(strings.NewReader(string(body)))
+	if err != nil {
+		return false, err
+	}
+
+	// Search for the <h2>About this game</h2> tag
+	found := false
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "h2" && n.FirstChild != nil && n.FirstChild.Data == "About this game" {
+			found = true
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+	traverse(doc)
+
+	return found, nil
 }

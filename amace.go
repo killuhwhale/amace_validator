@@ -159,6 +159,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("Failed to install app: ", appPack.Pname, err)
 			if err.Error() == "Need to purchase app" {
 				status = amace.PRICE
+			} else if err.Error() == "device is not compatible with app" {
+				status = amace.DEVICENOTCOMPAT
 			} else if err.Error() == "app not compatible with this device" {
 				status = amace.OLDVERSION
 			} else if err.Error() == "too many attempst: app failed to install" {
