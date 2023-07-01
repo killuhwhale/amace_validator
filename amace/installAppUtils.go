@@ -144,6 +144,10 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 
 		// If the version isn't compatible with the device, no install button will be available.
 		// Fail immediately.
+		testing.ContextLog(ctx, "Checking version text ")
+		if err := d.Object(ui.TextMatches(versionText)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("device is not compatible with app"))
+		}
 		testing.ContextLog(ctx, "Checking Old version text ")
 		if err := d.Object(ui.TextMatches(versionTextOldVersion)).Exists(ctx); err == nil {
 			return testing.PollBreak(errors.New("app not compatible with this device"))
@@ -281,6 +285,7 @@ func openAppPage(ctx context.Context, a *arc.ARC, pkgName string) error {
 	const (
 		intentActionView    = "android.intent.action.VIEW"
 		playStoreAppPageURI = "market://details?id="
+		// am start a.SendIntentCommand(ctx, intentActionView, playStoreAppPageURI+pkgName)
 	)
 
 	if err := a.SendIntentCommand(ctx, intentActionView, playStoreAppPageURI+pkgName).Run(testexec.DumpLogOnError); err != nil {

@@ -13,14 +13,10 @@ import (
 	"chromiumos/tast/local/chrome/uiauto/ossettings"
 	"chromiumos/tast/local/chrome/uiauto/role"
 	"context"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
-	"golang.org/x/net/html"
 )
 
 // SetDeviceNoSleepOnPower set the setttings for a run.
@@ -67,95 +63,24 @@ func GetBuildInfo(ctx context.Context, s *testing.State, a *arc.ARC) (string, er
 	return strings.ReplaceAll(string(output), "\n", ""), nil
 }
 
-// IsGame detects if an app is a game or not.
-func IsGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName string) (bool, error) {
-	cmd := a.Command(ctx, "dumpsys", "SurfaceFlinger", "--list")
+// GetArcVerison gets information for BuildInfo
+func GetArcVerison(ctx context.Context, s *testing.State, a *arc.ARC) (string, error) {
+	cmd := a.Command(ctx, "getprop", "ro.build.version.release")
 	output, err := cmd.Output()
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	for _, str := range strings.Split(strings.TrimSpace(string(output)), "\n") {
-		if strings.HasPrefix(str, "SurfaceView") && strings.Contains(str, packageName) {
-			return true, nil
-		}
-		fmt.Println("String does not match the criteria.")
-	}
-	// str := "SurfaceView - com.roblox.client/com.roblox.client.ActivityNativeMain#0"
-
-	// Define the regular expression pattern
-	// patternWithSurface := fmt.Sprintf(`^SurfaceView\s*-\s*%s/[\w.#]*$`, packageName)
-	// reSurface := regexp.MustCompile(patternWithSurface)
-
-	// // Execute the adb shell command to get the list of surfaces
-	// surfacesList := strings.TrimSpace(string(output))
-	// last := ""
-
-	// // Find matches using the regular expression pattern
-	// matches := reSurface.FindAllStringSubmatch(surfacesList, -1)
-	// s.Log("SurfacesList: ", surfacesList)
-	// s.Log("Matches: ", matches)
-	// for _, match := range matches {
-	// 	s.Log("Found surface match:", match)
-	// 	last = match[0]
-	// }
-
-	// if last != "" {
-	// 	if packageName != last {
-	// 		s.Log("Found match for wrong package")
-	// 		return false, nil
-	// 	}
-	// 	return true, nil
-	// }
-
-	// Check Google Play for h2 About this Game
-	exists, err := checkAboutGameTagExists(packageName)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return false, err
-	}
-
-	if exists {
-		return true, nil
-	}
-
-	return false, nil
+	s.Log("Output: ", output)
+	return strings.ReplaceAll(string(output), "\n", ""), nil
 }
 
-func checkAboutGameTagExists(packageName string) (bool, error) {
-	url := "https://play.google.com/store/apps/details?id=" + packageName
-
-	// Send GET request
-	resp, err := http.Get(url)
+// GetArcVerison gets information for BuildInfo
+func GetBuildChannel(ctx context.Context, s *testing.State, a *arc.ARC) (string, error) {
+	cmd := a.Command(ctx, "getprop", "ro.boot.chromeos_channel")
+	output, err := cmd.Output()
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	defer resp.Body.Close()
-
-	// Read response body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, err
-	}
-
-	// Parse HTML
-	doc, err := html.Parse(strings.NewReader(string(body)))
-	if err != nil {
-		return false, err
-	}
-
-	// Search for the <h2>About this game</h2> tag
-	found := false
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "h2" && n.FirstChild != nil && n.FirstChild.Data == "About this game" {
-			found = true
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			traverse(c)
-		}
-	}
-	traverse(doc)
-
-	return found, nil
+	s.Log("Output: ", output)
+	return strings.ReplaceAll(string(output), "\n", ""), nil
 }

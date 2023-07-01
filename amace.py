@@ -152,7 +152,8 @@ class AMACE:
 
     def __run_tast(self):
         """Command for the TAST test with required params."""
-        cmd = ("tast", "-verbose", "run", f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", "-var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:lb0+LT8q", self.__device, "arc.AMACE")
+        cmd = ("tast", "-verbose", "run", f"-var=arc.AccessVars.globalPOSTURL={self.__BASE_URL}" , f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", "-var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:lb0+LT8q", self.__device, "arc.AMACE")
+
         return self.__run_command(cmd)
 
     def __post_err(self):
