@@ -5,8 +5,9 @@
 package amace
 
 import (
-	"chromiumos/tast/local/input"
 	"context"
+
+	"go.chromium.org/tast-tests/cros/local/input"
 
 	"go.chromium.org/tast/core/testing"
 )

@@ -5,12 +5,14 @@
 package amace
 
 import (
-	"chromiumos/tast/common/android/ui"
-	"chromiumos/tast/common/testexec"
-	"chromiumos/tast/local/arc"
+	"go.chromium.org/tast-tests/cros/common/android/ui"
+	// "chromiumos/tast/common/testexec"
 	"context"
 	"fmt"
 	"time"
+
+	"go.chromium.org/tast-tests/cros/common/testexec"
+	"go.chromium.org/tast-tests/cros/local/arc"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
@@ -38,15 +40,15 @@ type Options struct {
 type operation string
 
 // InstallARCApp uses the Play Store to install or update an application.
-func InstallARCApp(ctx context.Context, s *testing.State, a *arc.ARC, d *ui.Device, appPack AppPackage) error {
-	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 3, InstallationTimeout: 30}); err != nil {
+func InstallARCApp(ctx context.Context, s *testing.State, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) error {
+	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 3, InstallationTimeout: 30}, accountPassword); err != nil {
 		s.Log("Failed to install app: ", appPack.Pname)
 		return err
 	}
 	return nil
 }
 
-func installApp(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, opt *Options) error {
+func installApp(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, opt *Options, accountPassword string) error {
 	installed, err := a.PackageInstalled(ctx, pkgName)
 	if err != nil {
 		return err
@@ -55,7 +57,7 @@ func installApp(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, o
 		return nil
 	}
 
-	if err := installOrUpdate(ctx, a, d, pkgName, opt); err != nil {
+	if err := installOrUpdate(ctx, a, d, pkgName, opt, accountPassword); err != nil {
 		return err
 	}
 
@@ -71,7 +73,7 @@ func installApp(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, o
 }
 
 // installOrUpdate uses the Play Store to install or update an application.
-func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, opt *Options) error {
+func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, opt *Options, accountPassword string) error {
 	const (
 		accountSetupText      = "Complete account setup"
 		permissionsText       = "needs access to"
@@ -245,10 +247,14 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		// }
 
 		testing.ContextLog(ctx, "Checking Price Button ")
-		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(priceRegex)).Exists(ctx); err != nil {
+		priceBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(priceRegex))
+		if err := priceBtn.Exists(ctx); err != nil {
 			testing.ContextLog(ctx, "Price button DNE ")
 		} else {
 			testing.ContextLog(ctx, "Price exists")
+			if purchaseApp(ctx, a, priceBtn, d, accountPassword) {
+				return testing.PollBreak(errors.New("App purchased"))
+			}
 			return testing.PollBreak(errors.New("Need to purchase app"))
 		}
 
@@ -278,6 +284,82 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 
 		return nil
 	}, &testing.PollOptions{Interval: time.Second})
+}
+
+// purchaseApp attemps to purchase an app.
+func purchaseApp(ctx context.Context, a *arc.ARC, priceBtn *ui.Object, d *ui.Device, accountPassword string) bool {
+	if err := priceBtn.Click(ctx); err != nil {
+		return false
+	}
+
+	onetapBtnText := "1-tap buy"
+	onetapBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(onetapBtnText))
+	if err := onetapBtn.Click(ctx); err != nil {
+		buyBtnText := "Buy"
+		buyBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(buyBtnText))
+		if err := buyBtn.Click(ctx); err != nil {
+			return false
+		}
+		// Enter password
+		cmd := a.Command(ctx, "input", "text", accountPassword)
+		_, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+
+		// Tap 'Verify'
+		verifyBtnText := "Verify"
+		verifyBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(verifyBtnText))
+		if err := verifyBtn.Click(ctx); err != nil {
+			return false
+		}
+
+		// Check for Payment succcessful
+		paymentSuccessfulText := "Payment succcessful"
+		successViewExists := d.Object(ui.ClassName("android.widget.TextView"), ui.TextStartsWith(paymentSuccessfulText)).Exists(ctx)
+		if successViewExists != nil {
+			// Tap 'No, thanks' radio button
+			noThanksRadioText := "No, thanks"
+			noThanksRadio := d.Object(ui.ClassName("android.widget.RadioButton"), ui.TextStartsWith(noThanksRadioText))
+			if err := noThanksRadio.Click(ctx); err != nil {
+				return false
+			}
+			// Tap 'Ok' btn
+			okText := "Ok"
+			okBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(okText))
+			if err := okBtn.Click(ctx); err != nil {
+				return false
+			}
+
+			// Tap okay again if "You can share this purchase"
+			shareText := "You can share this purchase"
+			shareTextExists := d.Object(ui.ClassName("android.widget.TextView"), ui.TextStartsWith(shareText)).Exists(ctx)
+			if shareTextExists != nil {
+				okText := "Ok"
+				okBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(okText))
+				if err := okBtn.Click(ctx); err != nil {
+					return false
+				}
+			}
+
+			// Tap "No thanks" again if "Subscribe to Google Play Pass"
+			subText := "Subscribe to Google Play Pass"
+			subTextExists := d.Object(ui.ClassName("android.widget.TextView"), ui.TextStartsWith(subText)).Exists(ctx)
+			if subTextExists != nil {
+				noThanksText := "No thanks"
+				noThanksBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextStartsWith(noThanksText))
+				if err := noThanksBtn.Click(ctx); err != nil {
+					return false
+				}
+			}
+
+		}
+	}
+
+	// GoBigSleepLint Need to wait for act to start...
+	// testing.Sleep(ctx, 120*time.Second)
+
+	return true
 }
 
 // openAppPage opens the detail page of an app in Play Store.

@@ -67,6 +67,8 @@ const (
 	Crashed = 2 // 2
 	// PRICE indicates needs purchase
 	PRICE = 10 // 10
+	// PRICE indicates needs purchase
+	PURCHASED = 11 // 10
 	// OLDVERSION indicates target SDK is old, app is old.
 	OLDVERSION = 20 // 20
 	// INSTALLFAIL indicates App install failed, usually due to Invalid App (hangouts, country, old version, or other manifest compat issues)
@@ -105,7 +107,7 @@ type AppResult struct {
 	BrokenStatus AppBrokenStatus
 	AppType      AppType
 	AppVersion   string
-	AppHistory   AppHistory
+	AppHistory   *AppHistory
 	Logs         string
 }
 

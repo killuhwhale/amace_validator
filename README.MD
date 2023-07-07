@@ -1,5 +1,8 @@
 
 
+gcloud auth application-default login
+
+
 
 # Delete Chroot
 If you need to delete your chroot, use cros_sdk --delete to delete it properly. Using rm -rf could end up deleting your source tree due to the active bind mounts.
@@ -14,11 +17,30 @@ Replace ALL isntaces of testacct@gmail.com:PASSWORD in code with real info.
  cd ${CHROMEOS_SRC}/src/platform/
 code ./tast-tests ./tast
 
+# Image Server
+Django server running on Host to accept images from DUTs and push to Server
+ ./manage.py runserver 192.168.1.229:8000
+ ./manage.py runserver hostIP:8000
+
+
+
+cd ${CHROMEOS_SRC}/src/platform/
+code ./tast-tests ./tast
+
+
+./startCROS.sh
+# Places user in scripts/
+./startAMACE.sh root@192.168.1.122
+# optional url to override Prod url as second arg.
+./startAMACE.sh root@192.168.1.122 http://192.168.1.229:3000/api/amaceResult
+
+
 ## Push data to server(default "https://appval-387223.wl.r.appspot.com/api/amaceResult")
 tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
+./startAMACE.sh root@192.168.1.125 http://192.168.1.229:3000/api/amaceResult
 
 ## Push data to localhost (or other url)
-tast -verbose run -var=arc.AccessVars.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
+tast -verbose run -var=arc.amace.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
 
 
 Make sure in put data file does not have trailing line.

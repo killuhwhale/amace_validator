@@ -6,15 +6,20 @@
 
 
 '''
-tast -verbose run -var=amace.runts=123 -var=amace.runid=123 -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:lb0+LT8q root@192.168.1.238 arc.AMACE
-
+tast -verbose run -var=arc.amace.posturl=http://xyz.com -var=arc.amace.hostip=http://192.168.1.123  -var=arc.amace.device=root@192.168.1.456 -var=amace.runts=123 -var=amace.runid=123  -var=ui.gaiaPoolDefault=email@gmail.com:password root@192.168.1.238 arc.AMACE
+./startAMACE.sh -d root@192.168.1.125 -d root@192.168.1.141 -a email@gmail.com:password
 '''
 import argparse
+import json
+from multiprocessing import Process
+import os
 import subprocess
+import sys
+from typing import List
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from time import time
+from time import sleep, time
 import requests
 
 Red = "\033[31m"
@@ -64,25 +69,27 @@ class AMACE:
     If the test fails early for any reason, the test will be re run.
     """
 
-    def __init__(self, device: str, BASE_URL: str):
+    def __init__(self, device: str, BASE_URL: str, host_ip: str, run_id: str, run_ts: int, test_account: str):
+        self.__test_account = test_account
         self.__device = device
         self.__current_package = ""
         self.__BASE_URL = BASE_URL
+        self.__host_ip = host_ip
         self.__run_finished = False
         self.__log_error = False
         self.__package_retries = defaultdict(int)
         self.__packages = defaultdict(int)
         self.__package_arr = []
         self.__api_key = None
-        self.__run_ts = int(time()*1000)
-        self.__run_id = uuid.uuid4()
+        self.__run_id = run_id
+        self.__run_ts = run_ts
         self.__request_body = None
         self.__get_apps()
         self.__get_api_key()
 
     def __get_apps(self):
         """Get apps from file."""
-        with open("../platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/data/AMACE_app_list.tsv", 'r', encoding="utf-8") as f:
+        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv", 'r', encoding="utf-8") as f:
             for idx, l in enumerate(f.readlines()):
                 pkg = l.split("\t")[1].replace("\n", "")
                 self.__package_arr.append(pkg)
@@ -90,7 +97,7 @@ class AMACE:
 
     def __get_api_key(self):
         """Get api key from file."""
-        with open("../platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
+        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
             self.__api_key = f.readline()
 
     def __get_next_app(self, pkg: str) -> str:
@@ -134,7 +141,6 @@ class AMACE:
             # Read output in real-time and log it
             for line in iter(process.stdout.readline, b''):
                 msg = line.decode().strip()
-                # TODO() Split the line to parse AppResult.
                 if "--appstart@" in msg:
                     self.__split_app_result(msg)
 
@@ -152,7 +158,7 @@ class AMACE:
 
     def __run_tast(self):
         """Command for the TAST test with required params."""
-        cmd = ("tast", "-verbose", "run", f"-var=arc.AccessVars.globalPOSTURL={self.__BASE_URL}" , f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", "-var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:lb0+LT8q", self.__device, "arc.AMACE")
+        cmd = ("tast", "-verbose", "run",  f"-var=arc.amace.device={self.__device}", f"-var=arc.amace.hostip={self.__host_ip}", f"-var=arc.amace.posturl={self.__BASE_URL}" , f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", f"-var=ui.gaiaPoolDefault={self.__test_account}", f"-var=arc.amace.account={self.__test_account}" , self.__device, "arc.AMACE")
 
         return self.__run_command(cmd)
 
@@ -181,17 +187,132 @@ class AMACE:
             p_red(f"Tast run over with: {self.__current_package=}")
 
 
+def get_local_ip():
+    '''
+    '''
+
+    result = subprocess.run(['ifconfig'], capture_output=True, text=True)
+    output = result.stdout
+    s = "192.168.1."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"192.168.1.{output[idx:idx+3]}"
+    except Exception as err:
+        pass
+
+    s = "192.168.0."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"192.168.1.{output[idx:idx+3]}"
+    except Exception as err:
+        print("Errir: ", err)
+
+    return ""
+
+
+def load_apps():
+    apps = fetch_apps()
+    write_apps(apps)
+
+def fetch_apps():
+    '''Fetch apps from backend. NextJS -> FirebaseDB'''
+    headers = {"Authorization": read_secret()}
+    # res = requests.get("http://localhost:3000/api/applist", headers=headers)
+    res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/applist", headers=headers)
+    result = json.loads(res.text)
+
+    s = result['data']['data']['apps']
+    results = s.replace("\\t", "\t").split("\\n")
+    print(f"{results=}")
+    return results
+
+def write_apps(apps: List[str]):
+    '''Overwrite /home/USER/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv
+        platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py
+    '''
+    filepath = f"../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv"
+    with open(filepath, "w", encoding="utf-8") as f:
+        for idx, line in enumerate(apps):
+            if idx == len(apps) - 1:
+                f.write(f"{line}")  # dont not write empty line on last entry
+            else:
+                f.write(f"{line}\n")
+
+def read_secret():
+    """Get api key from file."""
+    secret = ""
+    with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
+        secret = f.readline()
+    return secret
+
+
+def task(device: str, url, host_ip, run_id, run_ts, test_account):
+    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, run_id=run_id, run_ts=run_ts, test_account=test_account)
+    amace.start()
+
+
+class MultiprocessTaskRunner:
+    '''
+        Starts running AMACE() on each device/ ip.
+    '''
+    def __init__(self, url: str, host_ip: str,  ips: List[str], test_account: str):
+
+        self.__test_account = test_account
+        self.__run_ts = int(time()*1000)
+        self.__run_id = uuid.uuid4()
+        self.__url = url
+        self.__host_ip = host_ip
+        self.__ips = ips
+        self.__processes = []
+
+    def __start_process(self, ip):
+        try:
+            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__run_id, self.__run_ts, self.__test_account))
+            process.start()
+            self.__processes.append(process)
+        except Exception as error:
+            print("Error start process: ",  error)
+
+    def run(self):
+        # start process
+        for ip in self.__ips:
+            self.__start_process(ip)
+
+        for p in self.__processes:
+            p.join()
+
+
 if __name__ == "__main__":
+    load_apps()
     parser = argparse.ArgumentParser(description="App validation.")
     parser.add_argument("-d", "--device",
                         help="Device to run on DUT.",
                         default="", type=str)
+
     parser.add_argument("-u", "--url",
                         help="Base url to post data.",
                         default="https://appval-387223.wl.r.appspot.com/api/amaceResult", type=str)
 
+    parser.add_argument("-a", "--account",
+                        help="Test account for DUT.",
+                        default="", type=str)
+
     ags = parser.parse_args()
     url = ags.url
     print(f"BASEURL {url=}")
-    amace = AMACE(device=ags.device, BASE_URL=url)
-    amace.start()
+
+    host_ip = get_local_ip()
+    print(f"{host_ip=}")
+
+    test_account = ags.account
+
+    # Read list of ips from CLI
+    # Loops and create a new process for each
+    ips = [d for d in ags.device.split(" ") if d]
+    print("Starting on devices: ", ips)
+    # sleep(10)
+    tr = MultiprocessTaskRunner(url, host_ip, ips=ips, test_account=test_account)
+
+    tr.run()

@@ -5,12 +5,13 @@
 package amace
 
 import (
-	"chromiumos/tast/local/arc"
 	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+
+	"go.chromium.org/tast-tests/cros/local/arc"
 
 	"go.chromium.org/tast/core/testing"
 )

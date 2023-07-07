@@ -43,7 +43,7 @@ func LoadAppList(s *testing.State, startat string) ([]AppPackage, error) {
 	fileContent := string(b)
 
 	// Print the file content
-	fmt.Println(fileContent)
+	// fmt.Println(fileContent)
 	var pgks []AppPackage
 	lines := strings.Split(fileContent, "\n")
 	s.Log("Startat param: ", startat)
@@ -57,6 +57,6 @@ func LoadAppList(s *testing.State, startat string) ([]AppPackage, error) {
 			idx = lineIdx
 		}
 	}
-
+	s.Log("Loaded packages: ", pgks)
 	return pgks[idx:], nil
 }

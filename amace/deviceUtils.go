@@ -5,15 +5,17 @@
 package amace
 
 import (
-	"chromiumos/tast/common/android/ui"
-	"chromiumos/tast/local/arc"
-	"chromiumos/tast/local/chrome"
-	"chromiumos/tast/local/chrome/uiauto"
-	"chromiumos/tast/local/chrome/uiauto/nodewith"
-	"chromiumos/tast/local/chrome/uiauto/ossettings"
-	"chromiumos/tast/local/chrome/uiauto/role"
 	"context"
 	"strings"
+
+	"go.chromium.org/tast-tests/cros/common/android/ui"
+
+	"go.chromium.org/tast-tests/cros/local/arc"
+	"go.chromium.org/tast-tests/cros/local/chrome"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/nodewith"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/ossettings"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/role"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"

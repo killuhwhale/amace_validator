@@ -6,10 +6,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO ()
-
-// Logs need to retain newline chars, so we need to escape them in the code, i removed it because it seemed to cause an error.
-
 package arc
 
 import (
@@ -18,21 +14,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"os/exec"
 	"strings"
 	"time"
 
-	"chromiumos/tast/common/android/ui"
-	"chromiumos/tast/local/arc"
-	"chromiumos/tast/local/bundles/cros/arc/amace"
-	"chromiumos/tast/local/chrome"
-	"chromiumos/tast/local/chrome/ash"
-	"chromiumos/tast/local/chrome/display"
-	"chromiumos/tast/local/chrome/uiauto"
-	"chromiumos/tast/local/chrome/uiauto/nodewith"
-	"chromiumos/tast/local/chrome/uiauto/restriction"
-	"chromiumos/tast/local/input"
+	// "chromiumos/tast/common/android/ui"
+	// "go.chromium.org/tast-tests/cros/local/arc"
+	// "go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace"
+	// "go.chromium.org/tast-tests/cros/local/chrome"
+	// "go.chromium.org/tast-tests/cros/local/chrome/ash"
+	// "go.chromium.org/tast-tests/cros/local/chrome/display"
+	// "go.chromium.org/tast-tests/cros/local/chrome/uiauto"
+	// "go.chromium.org/tast-tests/cros/local/chrome/uiauto/nodewith"
+	// "go.chromium.org/tast-tests/cros/local/chrome/uiauto/restriction"
+	// "go.chromium.org/tast-tests/cros/local/input"
 
+	"go.chromium.org/tast-tests/cros/common/android/ui"
+	"go.chromium.org/tast-tests/cros/local/arc"
+	"go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace"
+	"go.chromium.org/tast-tests/cros/local/chrome"
+	"go.chromium.org/tast-tests/cros/local/chrome/ash"
+	"go.chromium.org/tast-tests/cros/local/chrome/display"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/nodewith"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/restriction"
+	"go.chromium.org/tast-tests/cros/local/input"
 	"go.chromium.org/tast/core/ctxutil"
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
@@ -57,8 +65,13 @@ func init() {
 
 // -var=arc.AccessVars.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult"
 // postURL is default "https://appval-387223.wl.r.appspot.com/api/amaceResult" || -var=arc.AccessVars.globalPOSTURL
+var hostIP = testing.RegisterVarString(
+	"arc.amace.hostip",
+	"192.168.1.1337",
+	"Host device ip on local network to reach image server.",
+)
 var postURL = testing.RegisterVarString(
-	"arc.AccessVars.globalPOSTURL",
+	"arc.amace.posturl",
 	"https://appval-387223.wl.r.appspot.com/api/amaceResult",
 	"Url for api endpoint.",
 )
@@ -72,10 +85,20 @@ var runID = testing.RegisterVarString(
 	"na",
 	"Run uuid for current run.",
 )
+var device = testing.RegisterVarString(
+	"arc.amace.device",
+	"na",
+	"Run uuid for current run.",
+)
 var startat = testing.RegisterVarString(
 	"arc.amace.startat",
 	"na",
 	"App index to start at.",
+)
+var account = testing.RegisterVarString(
+	"arc.amace.account",
+	"na",
+	"Automation account.",
 )
 
 type requestBody struct {
@@ -90,15 +113,23 @@ type requestBody struct {
 	BrokenStatus amace.AppBrokenStatus `json:"brokenStatus"`
 	AppType      amace.AppType         `json:"appType"`
 	AppVersion   string                `json:"appVersion"`
-	AppHistory   amace.AppHistory      `json:"history"`
+	AppHistory   *amace.AppHistory     `json:"history"`
 	Logs         string                `json:"logs"`
 }
 
 var centerButtonClassName = "FrameCenterButton"
 
 func AMACE(ctx context.Context, s *testing.State) {
+	s.Log("########################################")
+	s.Log("Account: ", account.Value())
+	s.Log("Host IP: ", hostIP.Value())
+	s.Log("Post URL: ", postURL.Value())
+	s.Log("Device: ", device.Value())
+	s.Log("Start at: ", startat.Value())
+	s.Log("########################################")
 
 	a := s.FixtValue().(*arc.PreData).ARC
+
 	ax := s.FixtValue().(*arc.PreData)
 	cr := s.FixtValue().(*arc.PreData).Chrome
 	d := s.FixtValue().(*arc.PreData).UIDevice
@@ -140,8 +171,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 		s.Fatal("Failed to get device info ")
 	}
 
-	buildInfo := fmt.Sprintf(("%s - %s"), buildInformation, buildChannel)
-	deviceInfo := fmt.Sprintf(("%s - %s"), deviceInformation, arcVersion)
+	buildInfo := fmt.Sprintf(("%s - %s (%s)"), buildInformation, buildChannel, arcVersion)
+	deviceInfo := fmt.Sprintf(("%s - %s"), deviceInformation, device.Value())
 
 	testApps, err := amace.LoadAppList(s, startat.Value())
 	if err != nil {
@@ -176,6 +207,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	var status amace.AppStatus
 	var finalLogs string
 	var tmpAppType amace.AppType
+
 	for _, appPack := range testApps {
 		// Reset Final logs
 		finalLogs = ""
@@ -189,10 +221,16 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// Signals a new app run to python parent manage-program
 		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
 
+		// ####################################
+		// ####   Install APP           #######
+		// ####################################
 		s.Log("Installing app", appPack)
-		if err := amace.InstallARCApp(ctx, s, a, d, appPack); err != nil {
+
+		if err := amace.InstallARCApp(ctx, s, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
 			s.Log("Failed to install app: ", appPack.Pname, err)
-			if err.Error() == "Need to purchase app" {
+			if err.Error() == "App purchased" {
+				status = amace.PURCHASED
+			} else if err.Error() == "Need to purchase app" {
 				status = amace.PRICE
 			} else if err.Error() == "device is not compatible with app" {
 				status = amace.DEVICENOTCOMPAT
@@ -206,21 +244,36 @@ func AMACE(ctx context.Context, s *testing.State) {
 				status = amace.Fail
 			}
 
-			appHistory.AddHistory("App failed to install.", "SS url here")
-			res, err := postData(
-				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: appHistory, Logs: finalLogs},
-				s, buildInfo, secret, deviceInfo)
-			if err != nil {
-				s.Log("Error posting: ", err)
+			if status != amace.PURCHASED {
+				addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App failed to install.")
+				res, err := postData(
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
+					s, buildInfo, secret, deviceInfo)
+				if err != nil {
+					s.Log("Error posting: ", err)
 
+				}
+				s.Log("Post res: ", res)
+
+				continue
+			} else {
+				addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "Purchased app.")
 			}
-			s.Log("Post res: ", res)
-
-			continue
 		}
-		s.Log("App Installed", appPack)
-		appHistory.AddHistory("App Installed", "SS url here")
 
+		s.Log("App Installed", appPack)
+		addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App Installed.")
+
+		// ####################################
+		// ####   Gather App Info       #######
+		// ####################################
+		appInfo := amace.NewAppInfo(ctx, tconn, s, d, a, appPack.Pname)
+		s.Log("AppInfo version: ", appInfo.Info.Version)
+		s.Log("AppInfo apptype: ", appInfo.Info.AppType)
+
+		// ####################################
+		// ####   Launch APP            #######
+		// ####################################
 		s.Log("Launching app", appPack)
 
 		errorDetector.ResetStartTime()
@@ -232,9 +285,10 @@ func AMACE(ctx context.Context, s *testing.State) {
 			// Check for misc Pop ups here.
 
 			if err := launchApp(ctx, s, a, appPack.Pname); err != nil {
-				appHistory.AddHistory("App failed to launch.", "SS url here")
+				addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App failed to launch.")
+
 				res, err := postData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: appHistory, Logs: finalLogs},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
 					s, buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -251,25 +305,24 @@ func AMACE(ctx context.Context, s *testing.State) {
 			}
 		}
 		s.Log("App launched ", appPack)
-		appHistory.AddHistory("App Launched", "SS url here")
+
+		addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App Launched.")
 
 		// GoBigSleepLint Need to wait for act to start...
-		testing.Sleep(ctx, 2*time.Second)
+		testing.Sleep(ctx, 5*time.Second)
 
-		appInfo := amace.NewAppInfo(ctx, tconn, s, d, a, appPack.Pname)
-		s.Log("AppInfo version: ", appInfo.Info.Version)
-		s.Log("AppInfo apptype: ", appInfo.Info.AppType)
-
-		s.Log("App history:", appHistory)
-
+		// ####################################
+		// ####   Check errors          #######
+		// ####################################
 		s.Log("Checking errors: ")
 		errorDetector.DetectErrors()
 		if crash = errorDetector.GetHighError(); len(crash.CrashLogs) > 0 {
 			s.Logf("App has error logs: %s/n %s/n %s/n", crash.CrashType, crash.CrashMsg, crash.CrashLogs)
-			appHistory.AddHistory("App crashed.", "SS url here")
+
+			addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App crashed.")
 			finalLogs = getFinalLogs(crash)
 			res, err := postData(
-				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: appHistory, Logs: finalLogs},
+				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs},
 				s, buildInfo, secret, deviceInfo)
 			if err != nil {
 				s.Log("Error posting: ", err)
@@ -279,13 +332,15 @@ func AMACE(ctx context.Context, s *testing.State) {
 			continue
 		}
 
+		// ####################################
+		// ####   Check Amace Window    #######
+		// ####################################
 		s.Log("Checking AMAC-E: ")
 		status, err = checkAppStatus(ctx, tconn, s, d, appPack.Pname, appPack.Aname)
 		if err != nil {
 			s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
-			// TODO() post here
 			res, err := postData(
-				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: appHistory, Logs: finalLogs},
+				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs},
 				s, buildInfo, secret, deviceInfo)
 			if err != nil {
 				s.Log("Error posting: ", err)
@@ -294,34 +349,6 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("Post res: ", res)
 			continue
 		}
-		// // GoBigSleepLint Need to wait for SurfaceView to be used/ created...
-		// testing.Sleep(ctx, 5*time.Second)
-
-		// Check logs, for any errors.
-
-		// Deprecated ######################
-		// Moved to apputils.go appinfo ######################
-		// var isGame bool = false
-		// isGame, err = amace.IsGame(ctx, s, a, appPack.Pname)
-		// if err != nil {
-		// 	s.Log("Failed to check is game: ", appPack.Pname, err)
-		// }
-		// s.Logf("✅💥 %s is a game %v", appPack.Pname, isGame)
-		// Deprecated ######################
-
-		// // Logging purposes only
-		// if status < 5 {
-		// 	s.Log("💥 App failed: ", appPack.Pname, status)
-		// }
-		// if status == amace.O4C || status == amace.O4CFullScreenOnly {
-		// 	s.Log("✅ App is O4C: ", appPack.Pname, status)
-		// }
-		// if status >= 7 && status < 11 {
-		// 	s.Log("❌ App is AMAC-E:", appPack.Pname, status)
-		// }
-		// if status == amace.PWA {
-		// 	s.Log("❌❌ App is PWA:", appPack.Pname, status)
-		// }
 
 		if status == amace.PWA {
 			tmpAppType = amace.PWAAPP
@@ -329,16 +356,20 @@ func AMACE(ctx context.Context, s *testing.State) {
 			tmpAppType = appInfo.Info.AppType
 		}
 
+		// ####################################
+		// ####   Check Errors Again    #######
+		// ####################################
 		// Check if app is still open after checking window status, if not open, check error.
 		if !amace.IsAppOpen(ctx, a, appPack.Pname) {
 			s.Log("App is NOT open!")
-			appHistory.AddHistory("App closed unexpectedly.", "SS url here")
+
+			addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.")
 			if crash = errorDetector.GetHighError(); len(crash.CrashLogs) > 0 {
 				s.Logf("App has error logs: %s/n %s/n %s/n", crash.CrashType, crash.CrashMsg, crash.CrashLogs)
 
 				finalLogs = getFinalLogs(crash)
 				res, err := postData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: appHistory, Logs: finalLogs},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
 					s, buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -351,15 +382,18 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("App is still open!")
 		}
 
-		appHistory.AddHistory("App isnt broken.", "SS url here")
+		addHistoryWithImage(s, &appHistory, deviceInfo, appPack.Pname, "App isnt broken.")
 		finalLogs = getFinalLogs(crash)
 
+		// ####################################
+		// ####   Post APP Results      #######
+		// ####################################
 		// // Create result and post
 		ar := amace.AppResult{}
 
 		// We only detect a PWA via Status (amace status), we need to override the app/game check to report its a PWA too.
 
-		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: appHistory, Logs: finalLogs}
+		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs}
 		s.Log("💥✅❌✅💥 App Result: ", ar)
 
 		res, err := postData(ar, s, buildInfo, secret, deviceInfo)
@@ -379,6 +413,100 @@ func AMACE(ctx context.Context, s *testing.State) {
 		}
 	}
 	s.Log("--~~rundone") // Signals python parent manage-program that the run is over.
+
+}
+
+func addHistoryWithImage(s *testing.State, ah *amace.AppHistory, device, packageName, histMsg string) {
+	hs := fmt.Sprint(len(ah.History))
+	s.Log("Getting history len: ", ah.History, len(ah.History))
+	imgPath := postSS(s, device, packageName, hs)
+	ah.AddHistory(histMsg, imgPath)
+}
+
+// postSS will grab a ss, upload it to local server on host machine which posts to GCP and returns the path
+func postSS(s *testing.State, device, packageName, historyStep string) string {
+	ss, err := getSS()
+	if err != nil {
+		s.Log("Err ss: ", err)
+	}
+	// destination_blob_name = f"appRuns/{run_id}/{device}/{package_name}/{hist_step}"
+	imgPath := fmt.Sprintf("amaceRuns/%s/%s/%s/%s", runID.Value(), device, packageName, historyStep)
+	postImage(s, ss, imgPath)
+	return imgPath
+}
+
+func getSS() ([]byte, error) {
+	cmd := exec.Command("adb", "exec-out", "screencap", "-p")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func postImage(s *testing.State, image []byte, imgPath string) error {
+	// Make request to lcoal server and check response
+	// get Image from device in another function
+	// Send image to server to recv w/ RUNID
+	// Once image is grabbed and successfully sent, upload to DATABASE via runID
+	s.Logf("Host ip: %s => %s", hostIP.Value(), imgPath)
+
+	// Create a new multipart buffer
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+
+	// Add the screenshot file
+	imageField, err := writer.CreateFormFile("image", "img.png")
+	if err != nil {
+		return err
+	}
+
+	// Write the image data to the form file field
+	if _, err = imageField.Write(image); err != nil {
+		return err
+	}
+
+	// Add the additional data field
+	dataWriter, err := writer.CreateFormField("imgPath")
+	if err != nil {
+		return err
+	}
+	dataWriter.Write([]byte(imgPath))
+
+	// Close the multipart writer
+	writer.Close()
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/", hostIP.Value()), body)
+	if err != nil {
+		s.Log("Error unexpected: ", err)
+		return err
+	}
+
+	// Set the Content-Type header to the multipart form data boundary
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.Log("Error unexpected: ", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		s.Log("Error: ", fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		s.Log("Error:", err)
+	}
+
+	bodyString := string(bodyBytes)
+	s.Log("Host response: ", bodyString)
+
+	return nil
 }
 
 func getFinalLogs(crash amace.ErrResult) string {

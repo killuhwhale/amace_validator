@@ -5,14 +5,16 @@
 package amace
 
 import (
-	"chromiumos/tast/common/android/ui"
-	"chromiumos/tast/local/arc"
-	"chromiumos/tast/local/chrome"
 	"context"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"go.chromium.org/tast-tests/cros/common/android/ui"
+
+	"go.chromium.org/tast-tests/cros/local/arc"
+	"go.chromium.org/tast-tests/cros/local/chrome"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
@@ -38,6 +40,7 @@ func NewAppInfo(ctx context.Context, tconn *chrome.TestConn, s *testing.State, d
 		Info:        PackageInfo{},
 	}
 	appInfo.processApp(ctx, tconn, s, d, a)
+
 	return appInfo
 }
 
