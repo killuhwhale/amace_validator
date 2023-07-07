@@ -1,7 +1,5 @@
 #!/bin/bash
-# tast -verbose run  -var=ui.gaiaPoolDefault=testaccount@gmail.com:PASSWORD $device_address arc.AMACE
-# Place in ~/chromiumos/src/scripts
-
+# tast -verbose run  -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:lb0+LT8q $device_address arc.AMACE
 # ./startAMACE.sh -d root@192.168.1.125 -d root@192.168.1.141 -u  http://192.168.1.229:3000/api/amaceResult
 
 function usage {
@@ -14,11 +12,13 @@ function usage {
     echo "                          (example: root@192.168.1.123 root@192.168.123)"
     echo "  -u  string             Url of server to post results to."
     echo "                          (example: http://192.168.1.229:3000/api/amaceResult)"
+    echo "  -a  string             Account for DUT."
+    echo "                          (example: http://192.168.1.229:3000/api/amaceResult)"
     echo ""
 }
 
 # Parse command-line options
-while getopts ":d:u:" opt; do
+while getopts ":d:u:a:" opt; do
   case ${opt} in
     d)
       # Device addresses
@@ -27,6 +27,10 @@ while getopts ":d:u:" opt; do
     u)
       # URL
       url=$OPTARG
+      ;;
+    a)
+      # Account
+      account=$OPTARG
       ;;
     *)
       usage
@@ -43,8 +47,9 @@ done
 
 if [[ -z ${url} ]]; then
   echo "Using default URL"
-  python3 ../platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace.py -d "${devices}"
+#   ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -a "${account}"
 else
   echo "Using URL: ${url}"
-  python3 ../platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}"
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}" -a "${account}"
 fi
