@@ -8,6 +8,11 @@ import smtplib
 # Import the email modules we'll need
 from email.message import EmailMessage
 
+
+from google.cloud import storage
+# Instantiates a client
+storage_client = storage.Client()
+
 # cred = cred.with_subject(email)
 
 # creds, _ = google.auth.load_credentials_from_file(f"{BASE_DIR}/imageserver/appvalEmailKey.json")
