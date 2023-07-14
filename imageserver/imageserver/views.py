@@ -8,6 +8,7 @@ import smtplib
 # Import the email modules we'll need
 from email.message import EmailMessage
 
+from imageserver.settings import env
 
 from google.cloud import storage
 # Instantiates a client
@@ -18,7 +19,6 @@ from django.conf import settings
 from imageserver.yolov8 import YoloV8
 import os
 
-print(f"{os.getcwd()=}")
 
 V8_WEIGHTS=f"{os.getcwd()}/imageserver/imageserver/weights/best_1080_v8m_v3.pt"
 detector_v8 = YoloV8(weights=V8_WEIGHTS)
@@ -32,7 +32,7 @@ class EmailViewSet(APIView):
 
         subject = 'Automation bug report'
         message = req.data['msg']
-        to = ['andayac@gmail.com', 'buganizer-system+168499@google.com']
+        to = []
 
         try:
            send_mail( subject=subject, message=message, from_email=settings.EMAIL_HOST_USER, recipient_list=to)
@@ -67,7 +67,7 @@ class ImageViewSet(APIView):
 
 
         # The ID of your GCS bucket
-        bucket_name = "appval-387223.appspot.com"
+        bucket_name = env("BUCKET_NAME")
         # The path to your file to upload
         # source_file_name = "local/path/to/file"
         # The ID of your GCS object
