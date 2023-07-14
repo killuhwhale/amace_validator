@@ -19,7 +19,9 @@ code ./tast-tests ./tast
 
 # Image Server
 Django server running on Host to accept images from DUTs and push to Server
- ./manage.py runserver 192.168.1.229:8000
+ source bin/activate
+ ./imageserver/manage.py runserver 192.168.1.229:8000
+
  ./manage.py runserver hostIP:8000
 
 

@@ -41,8 +41,8 @@ type operation string
 
 // InstallARCApp uses the Play Store to install or update an application.
 func InstallARCApp(ctx context.Context, s *testing.State, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) error {
-	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 3, InstallationTimeout: 30}, accountPassword); err != nil {
-		s.Log("Failed to install app: ", appPack.Pname)
+	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 6, InstallationTimeout: 90 * time.Second}, accountPassword); err != nil {
+		// s.Log("Failed to install app: ", appPack.Pname)
 		return err
 	}
 	return nil
@@ -80,15 +80,17 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		versionText           = "Your device isn't compatible with this version."
 		versionTextOldVersion = "This app isn't available for your device because it was made for an older version of Android."
 		countryNA             = "This item isn't available in your country."
+		chromebookNonCompat   = "This Chromebook isn't compatible with this app." // SolitaireFreeCell -> package from run 7-7-2023
 		linkPaypalAccountText = "Want to link your PayPal account.*"
 
-		acceptButtonText   = "accept"
-		continueButtonText = "continue"
-		installButtonText  = "install"
-		updateButtonText   = "update"
-		openButtonText     = "open"
-		playButtonText     = "play"
-		priceRegex         = ".*\\$.*"
+		acceptButtonText     = "accept"
+		continueButtonText   = "continue"
+		installButtonText    = "install"
+		altInstallButtonText = "Install"
+		updateButtonText     = "update"
+		openButtonText       = "open"
+		playButtonText       = "play"
+		priceRegex           = ".*\\$.*"
 
 		retryButtonText    = "retry"
 		tryAgainButtonText = "try again"
@@ -125,7 +127,7 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		return err
 	}
 
-	btnText := installButtonText
+	// btnText := installButtonText
 
 	// Wait for the app to install or update.
 	testing.ContextLog(ctx, "Waiting for app to install")
@@ -136,8 +138,9 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 	testing.ContextLog(ctx, "Polling app to install process return Poll")
 	return testing.Poll(ctx, func(ctx context.Context) error {
 		testing.ContextLog(ctx, "🔥 Current Poll Tries:  ", pollTries)
-		if pollTries > 2 {
-			return testing.PollBreak(errors.New("too many attempst: app failed to install"))
+		// Need to check if app is currently being installed.....
+		if pollTries > tryLimit {
+			return testing.PollBreak(errors.New("too many attempts"))
 		}
 		pollTries++
 		if err := findAndDismissErrorDialog(ctx, d); err != nil {
@@ -149,30 +152,33 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		testing.ContextLog(ctx, "Checking version text ")
 		if err := d.Object(ui.TextMatches(versionText)).Exists(ctx); err == nil {
 			return testing.PollBreak(errors.New("device is not compatible with app"))
+		} else if err := d.Object(ui.DescriptionMatches(versionText)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("device is not compatible with app"))
 		}
 		testing.ContextLog(ctx, "Checking Old version text ")
 		if err := d.Object(ui.TextMatches(versionTextOldVersion)).Exists(ctx); err == nil {
 			return testing.PollBreak(errors.New("app not compatible with this device"))
+		} else if err := d.Object(ui.DescriptionMatches(versionTextOldVersion)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("app not compatible with this device"))
 		}
+
 		testing.ContextLog(ctx, "Checking valid country ")
 		if err := d.Object(ui.TextMatches(countryNA)).Exists(ctx); err == nil {
 			return testing.PollBreak(errors.New("app not availble in your country"))
+		} else if err := d.Object(ui.DescriptionMatches(countryNA)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("app not availble in your country"))
 		}
-		testing.ContextLog(ctx, "App is valid in country ")
 
-		// Make sure we are still on the Play Store installation page by checking whether the "open" or "play" button exists.
-		// If not, reopen the Play Store page by sending the same intent again.
-		testing.ContextLog(ctx, "Checking for Open/Play button ")
-		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", openButtonText, playButtonText))).Exists(ctx); err != nil {
-			// Check for version error
-			testing.ContextLog(ctx, "App installation page disappeared; reopen it")
-			if err := openAppPage(ctx, a, pkgName); err != nil {
-				return err
-			}
+		testing.ContextLog(ctx, "App is valid in country ")
+		testing.ContextLog(ctx, "Checking chromebook not compatible with this app ")
+		if err := d.Object(ui.TextMatches(chromebookNonCompat)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("chromebook not compat"))
+		} else if err := d.Object(ui.DescriptionMatches(chromebookNonCompat)).Exists(ctx); err == nil {
+			return testing.PollBreak(errors.New("chromebook not compat"))
 		}
 
 		// If the install or update button is enabled, click it.
-		if opButton, err := FindActionButton(ctx, d, btnText, 2*time.Second); err == nil {
+		if opButton, err := FindActionButton(ctx, d, installButtonText, 2*time.Second); err == nil {
 			testing.ContextLog(ctx, "Found install button")
 			// Limit number of tries to help mitigate Play Store rate limiting across test runs.
 			if tryLimit == -1 || tries < tryLimit {
@@ -183,6 +189,31 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 				}
 			} else {
 				return testing.PollBreak(errors.Errorf("hit install attempt limit of %d times", tryLimit))
+			}
+			// Check for Other install button
+		} else if opButton, err := FindActionButton(ctx, d, altInstallButtonText, 2*time.Second); err == nil {
+			testing.ContextLog(ctx, "Found install button")
+			// Limit number of tries to help mitigate Play Store rate limiting across test runs.
+			if tryLimit == -1 || tries < tryLimit {
+				tries++
+				testing.ContextLogf(ctx, "Trying to hit the install button. Total attempts so far: %d", tries)
+				if err := opButton.Click(ctx); err != nil {
+					return err
+				}
+			} else {
+				return testing.PollBreak(errors.Errorf("hit install attempt limit of %d times", tryLimit))
+			}
+		}
+
+		// Make sure we are still on the Play Store installation page by checking whether the "open" or "play" button exists.
+		// If not, reopen the Play Store page by sending the same intent again.
+		testing.ContextLog(ctx, "Checking for Open/Play button ")
+
+		if err := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(fmt.Sprintf("(?i)(%s|%s)", openButtonText, playButtonText))).Exists(ctx); err != nil {
+			// Check for version error
+			testing.ContextLog(ctx, "App installation page disappeared; reopen it")
+			if err := openAppPage(ctx, a, pkgName); err != nil {
+				return err
 			}
 		}
 
@@ -236,15 +267,29 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		// If one of them exists, that means the installation is still in progress.
 
 		// This text isnt found or print, probably outdated...
-		// progress := d.Object(ui.DescriptionContains("in progress"))
-		// if err := progress.WaitForExists(ctx, defaultUITimeout); err == nil {
-		// 	// Print the percentage of app installed so far.
-		// 	printPercentageOfAppInstalled(ctx, d)
-		// 	testing.ContextLog(ctx, "Wait until download and install complete")
-		// 	if err := progress.WaitUntilGone(ctx, installationTimeout); err != nil {
-		// 		return errors.Wrap(err, "installation is still in progress")
-		// 	}
-		// }
+		progress := d.Object(ui.DescriptionContains("in progress"))
+		if err := progress.WaitForExists(ctx, defaultUITimeout); err == nil {
+
+			// Print the percentage of app installed so far.
+			testing.ContextLog(ctx, "Checking progress!!!!! ")
+			testing.ContextLog(ctx, "Wait until download and install complete", progress.Exists(ctx))
+			printPercentageOfAppInstalled(ctx, d)
+			progress.WaitUntilGone(ctx, 10*installationTimeout)
+
+			// if err := progress.WaitUntilGone(ctx, installationTimeout); err != nil {
+			// 	testing.ContextLog(ctx, "installation is still in progress")
+			// 	return errors.Wrap(err, "installation is still in progress")
+			// }
+			cancel := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches("(?i)"+"Cancel"))
+			// Make timeout really long
+			if cancel.Exists(ctx) != nil {
+				if err := cancel.WaitUntilGone(ctx, 10*installationTimeout*6); err != nil {
+					testing.ContextLog(ctx, "installation is still in progress")
+					return errors.Wrap(err, "installation is still in progress")
+				}
+
+			}
+		}
 
 		testing.ContextLog(ctx, "Checking Price Button ")
 		priceBtn := d.Object(ui.ClassName("android.widget.Button"), ui.TextMatches(priceRegex))
@@ -253,6 +298,14 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 		} else {
 			testing.ContextLog(ctx, "Price exists")
 			if purchaseApp(ctx, a, priceBtn, d, accountPassword) {
+				progress := d.Object(ui.DescriptionContains("in progress"))
+				progress.WaitUntilGone(ctx, 10*installationTimeout)
+
+				// if err := progress.WaitUntilGone(ctx, installationTimeout*5); err != nil {
+				// 	testing.ContextLog(ctx, "installation is still in progress")
+				// 	return errors.Wrap(err, "installation is still in progress")
+				// }
+
 				return testing.PollBreak(errors.New("App purchased"))
 			}
 			return testing.PollBreak(errors.New("Need to purchase app"))
@@ -284,6 +337,29 @@ func installOrUpdate(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName stri
 
 		return nil
 	}, &testing.PollOptions{Interval: time.Second})
+}
+
+func printPercentageOfAppInstalled(ctx context.Context, d *ui.Device) {
+	const (
+		currentInstallPercentInGBText = ".*GB"
+		currentInstallPercentInMBText = ".*MB"
+		currentPerInfoClassName       = "android.widget.TextView"
+	)
+	for _, val := range []struct {
+		currentPercentInfoClassName string
+		currentInstallPercentInText string
+	}{
+		{currentPerInfoClassName, currentInstallPercentInMBText},
+		{currentPerInfoClassName, currentInstallPercentInGBText},
+	} {
+		currPerInfo := d.Object(ui.ClassName(val.currentPercentInfoClassName), ui.TextMatches("(?i)"+val.currentInstallPercentInText))
+		if err := currPerInfo.WaitForExists(ctx, time.Second); err == nil {
+			getInfo, err := currPerInfo.GetText(ctx)
+			if err == nil {
+				testing.ContextLogf(ctx, "Percentage of app installed so far: %v ", getInfo)
+			}
+		}
+	}
 }
 
 // purchaseApp attemps to purchase an app.
