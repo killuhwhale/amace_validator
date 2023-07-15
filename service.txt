@@ -1,0 +1,12 @@
+[Unit]
+Description=ImageServer Service
+After=network.target
+[Service]
+User=appval002
+Group=www-data
+Environment="MYAPP_IP=$(hostname -I | awk '{print $1}')"
+WorkingDirectory=/home/appval002/amaceValidator/imageserver
+ExecStart=/home/appval002/amaceValidator/bin/python manage.py runserver $MYAPP_IP:8000
+Restart=always
+[Install]
+WantedBy=multi-user.target

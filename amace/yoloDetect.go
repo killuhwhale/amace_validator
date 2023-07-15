@@ -15,8 +15,29 @@ import (
 	"net/http"
 	"time"
 
+	"go.chromium.org/tast-tests/cros/local/arc"
 	"go.chromium.org/tast/core/testing"
 )
+
+// #########################
+//  Example Code to use in amace.go
+// #########################
+// // GoBigSleepLint Wait for app to load some more and potentially fail...
+// testing.Sleep(ctx, 15*time.Second)
+// 	yr, err := amace.YoloDetect(ctx, hostIP.Value())  # Returns a yoloResult
+// 	if err != nil {
+// 		testing.ContextLog(ctx, "Failed to get YoloResult: ", err)
+// 	}
+// 	_, labelExists := yr.Data["Continue"]
+// 	if labelExists {
+// 		clicked := yr.Click(ctx, a, "Continue")
+// 		testing.ContextLog(ctx, "Clicked btn? ", clicked)
+
+// 	// GoBigSleepLint Wait for app to load some more and potentially fail...
+// 	testing.Sleep(ctx, 3*time.Second)
+// 	idx--
+// }
+// break
 
 // possible keys to map
 // Close
@@ -32,6 +53,38 @@ type YoloResult struct {
 		Coords [2][2]int `json:"coords"`
 		Conf   float64   `json:"conf"`
 	} `json:"data"`
+}
+
+func (yr *YoloResult) SendText(ctx context.Context, a *arc.ARC, text string) bool {
+	cmd := a.Command(ctx, "input", "text", text)
+	_, err := cmd.Output()
+	if err != nil {
+		testing.ContextLog(ctx, "Failed to send text")
+		return false
+	}
+	testing.ContextLog(ctx, "Sent: ", text)
+	return true
+}
+
+func (yr *YoloResult) Click(ctx context.Context, a *arc.ARC, label string) bool {
+	_, exists := yr.Data[label]
+	if !exists {
+		return false
+	}
+
+	btns := yr.Data[label]                             // TODO Sort by cond
+	btn, btns := btns[len(btns)-1], btns[:len(btns)-1] // pop operation, store last element, update slice w/out last element
+	x := (btn.Coords[0][0] + btn.Coords[1][0]) / 2     // mid point
+	y := (btn.Coords[0][1] + btn.Coords[1][1]) / 2
+	testing.ContextLog(ctx, "Tapping: ", fmt.Sprint(x), fmt.Sprint(y))
+	cmd := a.Command(ctx, "input", "tap", fmt.Sprint(x), fmt.Sprint(y))
+	output, err := cmd.Output()
+	if err != nil {
+		testing.ContextLog(ctx, "Failed to tap")
+		return false
+	}
+	testing.ContextLog(ctx, "Tapped!", output)
+	return true
 }
 
 func YoloDetect(ctx context.Context, hostIP string) (YoloResult, error) {
@@ -129,5 +182,4 @@ func YoloDetect(ctx context.Context, hostIP string) (YoloResult, error) {
 	elapsed := time.Since(start)
 	testing.ContextLogf(ctx, "Detection took: %s\n", elapsed)
 	return yoloResult, nil
-
 }

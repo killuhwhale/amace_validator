@@ -1,34 +1,35 @@
 
 
+# Auth w/ GCP
 gcloud auth application-default login
 
 
+# Enter Chroot
+cd ${CHROMEOS_SRC}/src/platform/
+code ./tast-tests ./tast
+
+# Update Chroot
+ (inside) ./update_chroot
 
 # Delete Chroot
 If you need to delete your chroot, use cros_sdk --delete to delete it properly. Using rm -rf could end up deleting your source tree due to the active bind mounts.
 
 
-# Update Chroot
- (inside) ./update_chroot
-
-Replace ALL isntaces of testacct@gmail.com:PASSWORD in code with real info.
-
-
- cd ${CHROMEOS_SRC}/src/platform/
-code ./tast-tests ./tast
 
 # Image Server
-Django server running on Host to accept images from DUTs and push to Server
- source bin/activate
- ./imageserver/manage.py runserver 192.168.1.229:8000
+    Django server running on Host to accept:
+    - Send images from DUTs and push to Server for Apphistory
+    - Send email
+    - Object detection
 
- ./manage.py runserver hostIP:8000
+    source bin/activate
+    ./imageserver/manage.py runserver 192.168.1.229:8000
+
+    ./manage.py runserver hostIP:8000
 
 
 
-cd ${CHROMEOS_SRC}/src/platform/
-code ./tast-tests ./tast
-
+# Start AMACE Validator
 
 ./startCROS.sh
 # Places user in scripts/
@@ -37,6 +38,8 @@ code ./tast-tests ./tast
 ./startAMACE.sh root@192.168.1.122 http://192.168.1.229:3000/api/amaceResult
 
 
+
+# Run Raw TAST command
 ## Push data to server(default "https://appval-387223.wl.r.appspot.com/api/amaceResult")
 tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
 ./startAMACE.sh root@192.168.1.125 http://192.168.1.229:3000/api/amaceResult
@@ -45,7 +48,28 @@ tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.
 tast -verbose run -var=arc.amace.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
 
 
-Make sure in put data file does not have trailing line.
+
+# Capablilities
+
+1. Install App
+2. Launch App
+3. Check Logcat Errors on Launch
+    - winDeath
+    - forceRmRecord
+    - fDebug
+    - fatalException
+    - procDied
+    - anr
+4. Check App for Black Screen
+5. Get App Version
+6. Get App Type
+7. Get AMACE Status
+8. Report app status on a per run basis.
+9. Run on multiple devices.
+
+
+# Notes:
+Make sure input data file does not have trailing line.
 
 
 SSH Works

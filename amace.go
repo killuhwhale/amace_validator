@@ -372,17 +372,6 @@ func AMACE(ctx context.Context, s *testing.State) {
 		}
 		addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App Window Status Verification Image.", true)
 
-		// GoBigSleepLint Wait for app to load some more and potentially fail...
-		testing.Sleep(ctx, 15*time.Second)
-		var idx = 3
-		for idx > 0 {
-			amace.YoloDetect(ctx, hostIP.Value())
-			// GoBigSleepLint Wait for app to load some more and potentially fail...
-			testing.Sleep(ctx, 3*time.Second)
-			idx--
-		}
-		break
-
 		// ####################################
 		// ####   Check Errors Again    #######
 		// ####################################
