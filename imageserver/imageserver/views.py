@@ -18,9 +18,11 @@ from django.core.mail import send_mail
 from django.conf import settings
 from imageserver.yolov8 import YoloV8
 import os
+from imageserver.settings import BASE_DIR
 
 
-V8_WEIGHTS=f"{os.getcwd()}/imageserver/imageserver/weights/best_1080_v8m_v3.pt"
+V8_WEIGHTS=f"{BASE_DIR}/imageserver/weights/best_1080_v8m_v3.pt"
+print(f"Loaded weights from: {V8_WEIGHTS}")
 detector_v8 = YoloV8(weights=V8_WEIGHTS)
 
 
