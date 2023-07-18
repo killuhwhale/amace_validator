@@ -1,3 +1,7 @@
+#!/bin/bash
+# Executing this file will write this content to a service file. This will start the Django server when the machine turns on which allows the automation program to communicate with the host.
+
+cat << EOF > /etc/systemd/system/imageserver.service
 [Unit]
 Description=ImageServer Service
 After=network.target
@@ -12,3 +16,4 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
+EOF
