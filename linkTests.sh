@@ -6,8 +6,8 @@
 #############################################################
 
 # Mkdir if DNE $CHROMEOS_SRC/src/platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace/
-# ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
-CHROMEOS_SRC="/home/$USER/chromiumos"
+# # ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
+# CHROMEOS_SRC="/home/$USER/chromiumos"
 directory="${CHROMEOS_SRC}/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc"
 amace_dir="$directory/amace"
 if [ ! -d "$amace_dir" ]; then
