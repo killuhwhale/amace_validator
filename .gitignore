@@ -1,2 +1,4 @@
 AMACE_secret.txt
 appvalEmailKey.json
+imageserver/imageserver/__pycache__/*
+imageserver/imageserver/.env
