@@ -24,6 +24,7 @@ from . import views
 
 urlpatterns = [
     path("", views.ImageViewSet.as_view()),
+    path("yolo/", views.YoloViewSet.as_view()),
     path("email/", views.EmailViewSet.as_view()),
     # path("admin/", admin.site.urls),
 ]

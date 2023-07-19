@@ -2,48 +2,59 @@ import os
 from requests import HTTPError
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
+from PIL import Image
 import smtplib
 
 # Import the email modules we'll need
 from email.message import EmailMessage
 
-# cred = cred.with_subject(email)
+from imageserver.settings import env
 
-# creds, _ = google.auth.load_credentials_from_file(f"{BASE_DIR}/imageserver/appvalEmailKey.json")
+from google.cloud import storage
+# Instantiates a client
+storage_client = storage.Client()
+
+from django.core.mail import send_mail
+from django.conf import settings
+from imageserver.yolov8 import YoloV8
+import os
+from imageserver.settings import BASE_DIR
+
+
+V8_WEIGHTS=f"{BASE_DIR}/imageserver/weights/best_1080_v8m_v3.pt"
+print(f"Loaded weights from: {V8_WEIGHTS}")
+detector_v8 = YoloV8(weights=V8_WEIGHTS)
+
 
 class EmailViewSet(APIView):
     def post(self, req, format=None):
+        '''https://www.abstractapi.com/guides/django-send-email'''
         # print(dir(req))
         print(req.data)
+
+        subject = 'Automation bug report'
+        message = req.data['msg']
+        to = []
+
         try:
-           # Import smtplib for the actual sending function
-
-
-# Open the plain text file whose name is in textfile for reading.
-            msg = EmailMessage()
-            msg.set_content("Testing")
-
-
-            # me == the sender's email address
-            # you == the recipient's email address
-            msg['Subject'] = f'Testing msgs'
-            msg['From'] = "andayac@gmail.com"
-            msg['To'] = "andayac@gmail.com"
-
-            # Send the message via our own SMTP server.
-            s = smtplib.SMTP('localhost')
-            s.send_message(msg)
-            s.quit()
-
-        except HTTPError as error:
-            print(F'An error occurred: {error}')
-            draft = None
-
-        return Response({"testing": True})
+           send_mail( subject=subject, message=message, from_email=settings.EMAIL_HOST_USER, recipient_list=to)
+        except Exception as err:
+            print("Email err: ", err)
+            return Response({"success": False})
+        return Response({"success": True})
 
 
 
+
+class YoloViewSet(APIView):
+    def post(self, req, format=None):
+        print(req.FILES)
+
+        img = req.FILES['image']
+
+        res = detector_v8.detect(Image.open(img))
+        print(f"{res=}")
+        return Response({"data": res, "error": None})
 
 
 class ImageViewSet(APIView):
@@ -58,7 +69,7 @@ class ImageViewSet(APIView):
 
 
         # The ID of your GCS bucket
-        bucket_name = "appval-387223.appspot.com"
+        bucket_name = env("BUCKET_NAME")
         # The path to your file to upload
         # source_file_name = "local/path/to/file"
         # The ID of your GCS object

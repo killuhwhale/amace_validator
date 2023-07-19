@@ -261,10 +261,90 @@ func (e *ErrorDetector) checkProcDied() (bool, string) {
 	return false, ""
 }
 
-// func (e *ErrorDetector) checkForANR() bool {
-// 	dumpsysActText := dumpysysActivity(e.TransportID, e.ArcVersion)
-// 	return isANR(dumpsysActText, e.PackageName)
-// }
+// def dumpysys_activity() -> str:
+//     try:
+//         keyword = "mFocusedWindow"
+//         cmd = ('adb', '-t', transport_id, 'shell', 'dumpsys', 'activity', '|', 'grep', keyword)
+//         return subprocess.run(cmd, check=False, encoding='utf-8',
+//             capture_output=True).stdout.strip()
+//     except Exception as err:
+//             print("Err dumpysys_activity ", err)
+//     return ''
+
+//	func (e *ErrorDetector) checkForANR() bool {
+//		dumpsysActText := dumpysysActivity(e.TransportID, e.ArcVersion)
+//		return isANR(dumpsysActText, e.PackageName)
+//	}
+
+func searchForCurrentActivity(text string) string {
+	foundLine := ""
+
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "mFocusedWindow") || strings.Contains(line, "mResumedActivity") {
+			foundLine = line
+		}
+	}
+
+	return foundLine
+}
+
+// searchForPackageANR seaches for ANR for a specific package
+func searchForPackageANR(text, pkgName string) string {
+	foundLine := ""
+	// ANR Text: mFocusedWindow=Window{afc9fce u0 Application Not Responding: com.thezeusnetwork.www}
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, fmt.Sprintf("Application Not Responding: %s", pkgName)) {
+			foundLine = line
+		}
+	}
+
+	return foundLine
+}
+
+// searchForANR searches for a general ANR
+func searchForANR(text string) string {
+	foundLine := ""
+	// ANR Text: mFocusedWindow=Window{afc9fce u0 Application Not Responding: com.thezeusnetwork.www}
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Application Not Responding:") {
+			foundLine = line
+		}
+	}
+
+	return foundLine
+}
+
+func (e *ErrorDetector) DumpsysAct() string {
+	cmd := e.a.Command(e.ctx, "dumpsys", "activity")
+	output, err := cmd.Output()
+	if err != nil {
+		e.s.Log("Error running surfaceflinger command.")
+	}
+
+	// e.s.Log("DumpSysAct: ", string(output))
+	// curAct := searchForCurrentActivity(string(output))
+	// e.s.Log("DumpSysAct: ", curAct)
+	return string(output)
+}
+
+func (e *ErrorDetector) CurrentActivity() string {
+	output := e.DumpsysAct()
+	return searchForCurrentActivity(output)
+}
+
+func (e *ErrorDetector) IsANR() bool {
+	output := e.DumpsysAct()
+	return len(searchForANR(output)) > 0
+}
+
+func (e *ErrorDetector) IsPackageANR() (bool, string) {
+	output := e.DumpsysAct()
+	anrText := searchForPackageANR(output, e.PackageName)
+	return len(anrText) > 0, anrText
+}
 
 func (e *ErrorDetector) DetectErrors() {
 	// Step 1: Get the logs
@@ -306,6 +386,13 @@ func (e *ErrorDetector) DetectErrors() {
 		e.Results = append(e.Results, ErrResult{CrashType: ProceDied, CrashMsg: "Proc died", CrashLogs: e.Escape(procDiedLogs)})
 	}
 
+	// Step 6: Check for Force Remove Record
+	anr, anrText := e.IsPackageANR()
+	if anr {
+		// return "Proc died", "Proc died", procDiedLogs
+		e.Results = append(e.Results, ErrResult{CrashType: ANR, CrashMsg: "ANR", CrashLogs: e.Escape(anrText)})
+	}
+
 }
 
 func (e *ErrorDetector) getStartTime() string {
@@ -316,4 +403,11 @@ func (e *ErrorDetector) getStartTime() string {
 
 func (e *ErrorDetector) ResetStartTime() {
 	e.StartTime = e.getStartTime()
+}
+
+func GetFinalLogs(crash ErrResult) string {
+	if (crash == ErrResult{}) {
+		return ""
+	}
+	return crash.CrashLogs
 }

@@ -6,6 +6,8 @@ package amace
 
 import (
 	"context"
+	"encoding/base64"
+	"image"
 	"strings"
 
 	"go.chromium.org/tast-tests/cros/common/android/ui"
@@ -85,4 +87,31 @@ func GetBuildChannel(ctx context.Context, s *testing.State, a *arc.ARC) (string,
 	}
 	s.Log("Output: ", output)
 	return strings.ReplaceAll(string(output), "\n", ""), nil
+}
+
+const (
+	// Do not use tast.promisify(), because this may be evaluated on the connection
+	// other than TestAPIConn.
+	takeScreenshot = `new Promise(function(resolve, reject) {
+		chrome.autotestPrivate.takeScreenshot(function(base64PNG) {
+		  if (chrome.runtime.lastError === undefined) {
+			resolve(base64PNG);
+		  } else {
+			reject(chrome.runtime.lastError.message);
+		  }
+		});
+	  })`
+)
+
+// CaptureChromeImageWithTestAPI takes a screenshot of the primary display and
+// returns it as an image.Image. It will use Test API to perform the screen
+// capture.
+func CaptureChromeImageWithTestAPI(ctx context.Context, tconn *chrome.TestConn) (image.Image, error) {
+	var base64PNG string
+	if err := tconn.Eval(ctx, takeScreenshot, &base64PNG); err != nil {
+		return nil, err
+	}
+	sr := strings.NewReader(base64PNG)
+	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, sr))
+	return img, err
 }

@@ -73,8 +73,12 @@ const (
 	OLDVERSION = 20 // 20
 	// INSTALLFAIL indicates App install failed, usually due to Invalid App (hangouts, country, old version, or other manifest compat issues)
 	INSTALLFAIL = 30 // 30
+	// TOOMANYATTEMPTS indicates App install failed too many attempst to install.
+	TOOMANYATTEMPTS = 31 // 30
 	// DEVICENOTCOMPAT indicates device is not comaptible: e.g. camera req-features
 	DEVICENOTCOMPAT = 40 // 40
+	// DEVICENOTCOMPAT indicates device is not comaptible: e.g. camera req-features
+	CHROMEBOOKNOTCOMPAT = 41 // 41
 	// COUNTRYNA indicates app not availble in country
 	COUNTRYNA = 50 // 50
 	// O4C indicates O4C

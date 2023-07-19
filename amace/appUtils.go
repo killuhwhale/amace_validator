@@ -15,6 +15,8 @@ import (
 
 	"go.chromium.org/tast-tests/cros/local/arc"
 	"go.chromium.org/tast-tests/cros/local/chrome"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto"
+	"go.chromium.org/tast-tests/cros/local/chrome/uiauto/nodewith"
 
 	"go.chromium.org/tast/core/errors"
 	"go.chromium.org/tast/core/testing"
@@ -66,6 +68,11 @@ func (ai *AppInfo) processApp(ctx context.Context, tconn *chrome.TestConn, s *te
 		ai.Info.AppType = APP
 	}
 	ai.Info.Version = version
+
+	if err := ai.closeAppPage(ctx, tconn); err != nil {
+		s.Fatal("Failed closing Settings - app details page: ", err)
+	}
+
 }
 
 // func (ai *AppInfo) Info() map[string]string {
@@ -108,6 +115,28 @@ func (ai *AppInfo) openAppInfoPage(ctx context.Context, tconn *chrome.TestConn, 
 	return nil
 }
 
+const (
+	shelfIconClassName    = "ash/ShelfAppButton"
+	closeMenuItemViewName = "Close"
+	settingsAppName       = "Android Preferences"
+	menuItemViewClassName = "MenuItemView"
+)
+
+// closeAppPage closes any open app management page.
+func (ai *AppInfo) closeAppPage(ctx context.Context, tconn *chrome.TestConn) error {
+	uia := uiauto.New(tconn)
+	settingShelfIcon := nodewith.Name(settingsAppName).HasClass(shelfIconClassName)
+	if err := uia.WithTimeout(10 * time.Second).RightClick(settingShelfIcon)(ctx); err != nil {
+		return errors.Wrap(err, "failed to find and right click on the shelf icon of the settings app")
+	}
+
+	closeMenuItem := nodewith.Name(closeMenuItemViewName).HasClass(menuItemViewClassName)
+	if err := uia.WithTimeout(10 * time.Second).LeftClick(closeMenuItem)(ctx); err != nil {
+		return errors.Wrap(err, "failed to find and click on the menu item for closing the settings app")
+	}
+	return nil
+}
+
 // verifyAppVersion check that version is present in app info page under Advanced.
 func verifyAppVersion(ctx context.Context, d *ui.Device,
 	tconn *chrome.TestConn) (string, error) {
@@ -145,16 +174,18 @@ func verifyAppVersion(ctx context.Context, d *ui.Device,
 
 // IsGame detects if an app is a game or not.
 func isGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName string) (bool, error) {
+	s.Log("Running isGame()")
 	cmd := a.Command(ctx, "dumpsys", "SurfaceFlinger", "--list")
 	output, err := cmd.Output()
 	if err != nil {
-		return false, err
-	}
-	for _, str := range strings.Split(strings.TrimSpace(string(output)), "\n") {
-		if strings.HasPrefix(str, "SurfaceView") && strings.Contains(str, packageName) {
-			return true, nil
+		s.Log("Error running surfaceflinger command.")
+	} else {
+		for _, str := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+			if strings.HasPrefix(str, "SurfaceView") && strings.Contains(str, packageName) {
+				return true, nil
+			}
+			// s.Log("String does not match the criteria.")
 		}
-		s.Log("String does not match the criteria.")
 	}
 	// str := "SurfaceView - com.roblox.client/com.roblox.client.ActivityNativeMain#0"
 
@@ -183,10 +214,11 @@ func isGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName strin
 	// 	return true, nil
 	// }
 
+	s.Log("Checking Google Play Web for is game")
 	// Check Google Play for h2 About this Game
-	exists, err := checkAboutGameTagExists(packageName)
+	exists, err := checkAboutGameTagExists(s, packageName)
 	if err != nil {
-		s.Log("Error:", err)
+		s.Log("Error checking game tag on playstore web:", err)
 		return false, err
 	}
 
@@ -197,8 +229,8 @@ func isGame(ctx context.Context, s *testing.State, a *arc.ARC, packageName strin
 	return false, nil
 }
 
-func checkAboutGameTagExists(packageName string) (bool, error) {
-	url := "https://play.google.com/store/apps/details?id=" + packageName
+func checkAboutGameTagExists(s *testing.State, packageName string) (bool, error) {
+	url := "https://play.google.com/store/apps/details?id=" + packageName + "&hl=en_US&gl=US"
 
 	// Send GET request
 	resp, err := http.Get(url)
@@ -238,11 +270,42 @@ func checkAboutGameTagExists(packageName string) (bool, error) {
 
 // IsAppOpen returns true if the app is open
 func IsAppOpen(ctx context.Context, a *arc.ARC, packageName string) bool {
-	cmd := a.Command(ctx, "dumpsys", "activity", "processes", "|", "grep", "-i", packageName)
+	cmd := a.Command(ctx, "dumpsys", "activity", "processes")
 	output, err := cmd.Output()
 	if err != nil {
 		return false
 	}
 	outStr := strings.TrimSpace(string(output))
-	return len(outStr) > 0
+	// testing.ContextLog(ctx, "Checking IsAppOpen: ", outStr)
+
+	lines := GrepLines(outStr, packageName)
+	for _, str := range lines {
+		// testing.ContextLog(ctx, "Grepped line: ", str)
+		if strings.Contains(str, packageName) && strings.Contains(str, "last crashed") {
+			return false
+		}
+
+	}
+	return len(lines) > 0
+}
+
+func UninstallApp(ctx context.Context, s *testing.State, arc *arc.ARC, pname string) error {
+	cmd := arc.Command(ctx, "uninstall", pname)
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	s.Log("Output: ", output)
+	return nil
+}
+
+func LaunchApp(ctx context.Context, s *testing.State, arc *arc.ARC, pname string) error {
+	// cmd = ('adb','-t', transport_id, 'shell', 'monkey', '--pct-syskeys', '0', '-p', package_name, '-c', 'android.intent.category.LAUNCHER', '1')
+	cmd := arc.Command(ctx, "monkey", "--pct-syskeys", "0", "-p", pname, "-c", "android.intent.category.LAUNCHER", "1")
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	s.Log("Output: ", output)
+	return nil
 }

@@ -11,16 +11,19 @@ tast -verbose run -var=arc.amace.posturl=http://xyz.com -var=arc.amace.hostip=ht
 '''
 import argparse
 import json
-from multiprocessing import Process
-import os
+
+import requests
 import subprocess
-import sys
-from typing import List
 import uuid
+
+
 from collections import defaultdict
 from dataclasses import dataclass
+from multiprocessing import Process
 from time import sleep, time
-import requests
+from typing import List
+
+
 
 Red = "\033[31m"
 Black = "\033[30m"
@@ -190,7 +193,6 @@ class AMACE:
 def get_local_ip():
     '''
     '''
-
     result = subprocess.run(['ifconfig'], capture_output=True, text=True)
     output = result.stdout
     s = "192.168.1."
@@ -254,9 +256,7 @@ def task(device: str, url, host_ip, run_id, run_ts, test_account):
 
 
 class MultiprocessTaskRunner:
-    '''
-        Starts running AMACE() on each device/ ip.
-    '''
+    ''' Starts running AMACE() on each device/ ip. '''
     def __init__(self, url: str, host_ip: str,  ips: List[str], test_account: str):
 
         self.__test_account = test_account
@@ -284,6 +284,10 @@ class MultiprocessTaskRunner:
             p.join()
 
 
+def start_server(path):
+    """Given the path to manage.py, start the django dev server."""
+
+    cmd = [f"{path}/manage.py", "runserver", f"{host_ip}:8000"]
 if __name__ == "__main__":
     load_apps()
     parser = argparse.ArgumentParser(description="App validation.")
@@ -299,12 +303,15 @@ if __name__ == "__main__":
                         help="Test account for DUT.",
                         default="", type=str)
 
+
     ags = parser.parse_args()
     url = ags.url
     print(f"BASEURL {url=}")
 
     host_ip = get_local_ip()
     print(f"{host_ip=}")
+
+
 
     test_account = ags.account
 
