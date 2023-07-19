@@ -1,7 +1,7 @@
 # Runs scripts need to setup automation
 
 # Create service and start server
-bash service.sh
+sudo bash service.sh
 sudo systemctl start imageserver.service
 sudo systemctl enable imageserver.service
 
@@ -9,7 +9,7 @@ sudo systemctl enable imageserver.service
 # Copy files to TAST
 bash linkTests.sh
 
-# Enter Chrrot
+# Enter Chroot
 bash startCROS.sh
 
 
