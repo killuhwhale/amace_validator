@@ -24,19 +24,19 @@ cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
 
 
 # Helper Functions
-cp -R ./amace/*    $amace_dir/*
-# cp ./amace/amaceScreenshot.go    $amace_dir/amaceScreenshot.go
-# cp ./amace/appHistory.go         $amace_dir/appHistory.go
-# cp ./amace/appUtils.go           $amace_dir/appUtils.go
-# cp ./amace/colorHeap.go          $amace_dir/colorHeap.go
-# cp ./amace/deviceutils.go        $amace_dir/deviceutils.go
-# cp ./amace/dismissMiscProps.go   $amace_dir/dismissMiscProps.go
-# cp ./amace/errorUtils.go         $amace_dir/errorUtils.go
-# cp ./amace/installAppUtils.go    $amace_dir/installAppUtils.go
-# cp ./amace/loadFiles.go          $amace_dir/loadFiles.go
-# cp ./amace/types.go              $amace_dir/types.go
-# cp ./amace/utils.go              $amace_dir/utils.go
-# cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
+# cp -R ./amace/*    $amace_dir/*
+cp ./amace/amaceScreenshot.go    $amace_dir/amaceScreenshot.go
+cp ./amace/appHistory.go         $amace_dir/appHistory.go
+cp ./amace/appUtils.go           $amace_dir/appUtils.go
+cp ./amace/colorHeap.go          $amace_dir/colorHeap.go
+cp ./amace/deviceUtils.go        $amace_dir/deviceutils.go
+cp ./amace/dismissMiscPops.go    $amace_dir/dismissMiscProps.go
+cp ./amace/errorUtils.go         $amace_dir/errorUtils.go
+cp ./amace/installAppUtils.go    $amace_dir/installAppUtils.go
+cp ./amace/loadFiles.go          $amace_dir/loadFiles.go
+cp ./amace/types.go              $amace_dir/types.go
+cp ./amace/utils.go              $amace_dir/utils.go
+cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
 
 
 # Data Files
