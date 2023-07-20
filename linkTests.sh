@@ -19,7 +19,7 @@ fi
 
 
 # Helper Scripts
-cp ./startCROS.sh /home/${USER}    # Starts Chroot
+# cp ./startCROS.sh /home/${USER}    # Starts Chroot
 cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
 
 
@@ -37,6 +37,8 @@ cp ./amace/loadFiles.go          $amace_dir/loadFiles.go
 cp ./amace/types.go              $amace_dir/types.go
 cp ./amace/utils.go              $amace_dir/utils.go
 cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
+
+
 
 
 # Data Files
