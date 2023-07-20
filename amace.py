@@ -284,10 +284,6 @@ class MultiprocessTaskRunner:
             p.join()
 
 
-def start_server(path):
-    """Given the path to manage.py, start the django dev server."""
-
-    cmd = [f"{path}/manage.py", "runserver", f"{host_ip}:8000"]
 if __name__ == "__main__":
     load_apps()
     parser = argparse.ArgumentParser(description="App validation.")

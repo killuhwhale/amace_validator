@@ -22,6 +22,7 @@ If you need to delete your chroot, use cros_sdk --delete to delete it properly. 
     - Send email
     - Object detection
 
+## dev start
     source bin/activate
     ./imageserver/manage.py runserver 192.168.1.229:8000
 
