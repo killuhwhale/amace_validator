@@ -40,7 +40,7 @@ type Options struct {
 type operation string
 
 // InstallARCApp uses the Play Store to install or update an application.
-func InstallARCApp(ctx context.Context, s *testing.State, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) error {
+func InstallARCApp(ctx context.Context, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) error {
 	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 6, InstallationTimeout: 90 * time.Second}, accountPassword); err != nil {
 		// s.Log("Failed to install app: ", appPack.Pname)
 		return err

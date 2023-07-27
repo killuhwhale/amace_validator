@@ -4,7 +4,14 @@
 
 package amace
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"go.chromium.org/tast-tests/cros/local/chrome"
+	"go.chromium.org/tast/core/testing"
+)
 
 type AppHistoryStep struct {
 	Msg string `json:"msg"`
@@ -67,4 +74,11 @@ func (ah *AppHistory) UnmarshalJSON(data []byte) error {
 	// Assign the temporary slice to the History field
 	ah.History = history
 	return nil
+}
+
+func AddHistoryWithImage(ctx context.Context, tconn *chrome.TestConn, ah *AppHistory, device, packageName, histMsg, runID, hostIP string, viaChrome bool) {
+	hs := fmt.Sprint(len(ah.History))
+	testing.ContextLog(ctx, "Getting history len: ", ah.History, len(ah.History))
+	imgPath := PostSS(ctx, tconn, device, packageName, hs, runID, hostIP, viaChrome)
+	ah.AddHistory(histMsg, imgPath)
 }

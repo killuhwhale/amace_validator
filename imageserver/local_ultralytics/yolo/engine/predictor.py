@@ -107,6 +107,7 @@ class BasePredictor:
         self.call_idx = 0
         self.callbacks = defaultdict(list, callbacks.default_callbacks)  # add callbacks
         callbacks.add_integration_callbacks(self)
+        self.current_count = 0
 
     def preprocess(self, img):
         pass
@@ -237,7 +238,9 @@ class BasePredictor:
         if self.args.save or self.args.save_txt or self.args.save_crop:
             nl = len(list(self.save_dir.glob('labels/*.txt')))  # number of labels
             s = f"\n{nl} label{'s' * (nl > 1)} saved to {self.save_dir / 'labels'}" if self.args.save_txt else ''
-            LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}{s}/img.png")
+            LOGGER.info(f"{self.save_dir=}")
+            LOGGER.info(f"Resultszzzz saved to {colorstr('bold', self.save_dir)}{s}/img_{self.current_count}.png")
+            self.current_count += 1
 
         self.run_callbacks('on_predict_end')
 

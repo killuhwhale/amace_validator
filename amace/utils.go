@@ -9,6 +9,17 @@ import (
 	"regexp"
 )
 
+const (
+	// PlaystorePackageName is the name for the app
+	PlaystorePackageName = "com.android.vending"
+	// PlaystoreAppName is the name for the app
+	PlaystoreAppName = "com.google.android.finsky.activities.MainActivity"
+	// FacebookPackageName is the name for the app
+	FacebookPackageName = "com.facebook.katana"
+	// FacebookAppName is the name for the app
+	FacebookAppName = "Facebook"
+)
+
 func GrepLines(input, pattern string) []string {
 	re := regexp.MustCompile(pattern)
 	lines := bytes.Split([]byte(input), []byte("\n"))
