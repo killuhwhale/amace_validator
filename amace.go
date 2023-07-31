@@ -88,6 +88,11 @@ var account = testing.RegisterVarString(
 	"na",
 	"Automation account.",
 )
+var creds = testing.RegisterVarString(
+	"arc.amace.creds",
+	"na",
+	"App account creds by package name.",
+)
 
 // var onlyAMACEStatus = testing.RegisterVarString(
 // 	"arc.amace.account",
@@ -120,6 +125,13 @@ func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("Post URL: ", postURL.Value())
 	s.Log("Device: ", device.Value())
 	s.Log("Start at: ", startat.Value())
+	s.Log("App creds: ", creds.Value())
+	var ac amace.AppCreds
+	err := json.Unmarshal([]byte(creds.Value()), &ac)
+	if err != nil {
+		testing.ContextLog(ctx, "Failed unmarshalling JSON app creds")
+	}
+	s.Log("App creds: ", ac)
 	s.Log("########################################")
 
 	a := s.FixtValue().(*arc.PreData).ARC
@@ -202,6 +214,20 @@ func AMACE(ctx context.Context, s *testing.State) {
 	var finalLogs string
 	var tmpAppType amace.AppType
 
+	fbPreLoggedIn := amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
+	testing.ContextLog(ctx, "Pre login facebook: ", fbPreLoggedIn)
+
+	testing.ContextLog(ctx, "Facebook logged in: ", fbPreLoggedIn)
+
+	ar := amace.AppResult{}
+	ar = amace.AppResult{App: amace.AppPackage{Pname: amace.FacebookPackageName, Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs}
+
+	res, err := postData(ar, s, buildInfo, secret, deviceInfo)
+	if err != nil {
+		s.Log("Error posting: ", err)
+	}
+	s.Log("Post res: ", res)
+
 	for _, appPack := range testApps {
 		// Reset Final logs
 		finalLogs = ""
@@ -220,7 +246,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// ####################################
 		s.Log("Installing app", appPack)
 
-		if err := amace.InstallARCApp(ctx, s, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
+		if err := amace.InstallARCApp(ctx, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
 			s.Log("Failed to install app: ", appPack.Pname, "  - err: ", err)
 			if err.Error() == "App purchased" {
 				status = amace.PURCHASED
@@ -243,7 +269,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			}
 			// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
 			if status != amace.PURCHASED {
-				addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", false)
+				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
 				res, err := postData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
 					s, buildInfo, secret, deviceInfo)
@@ -255,12 +281,12 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 				continue
 			} else {
-				addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", false)
+				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
 			}
 		}
 
 		s.Log("App Installed", appPack)
-		addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App Installed.", false)
+		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App Installed.", runID.Value(), hostIP.Value(), false)
 
 		// ####################################
 		// ####   Gather App Info       #######
@@ -277,13 +303,13 @@ func AMACE(ctx context.Context, s *testing.State) {
 		errorDetector.ResetStartTime()
 		errorDetector.UpdatePackageName(appPack.Pname)
 
-		if err := amace.LaunchApp(ctx, s, a, appPack.Pname); err != nil {
+		if err := amace.LaunchApp(ctx, a, appPack.Pname); err != nil {
 			// GoBigSleepLint Need to wait for act to start...
 			testing.Sleep(ctx, 2*time.Second)
 			// Check for misc Pop ups here.
 
-			if err := amace.LaunchApp(ctx, s, a, appPack.Pname); err != nil {
-				addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App failed to launch.", false)
+			if err := amace.LaunchApp(ctx, a, appPack.Pname); err != nil {
+				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to launch.", runID.Value(), hostIP.Value(), false)
 
 				res, err := postData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
@@ -304,7 +330,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		}
 		s.Log("App launched ", appPack)
 
-		addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App Launched.", false)
+		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App Launched.", runID.Value(), hostIP.Value(), false)
 
 		// GoBigSleepLint Need to wait for act to start...
 		testing.Sleep(ctx, 5*time.Second)
@@ -318,7 +344,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		if !amace.IsAppOpen(ctx, a, appPack.Pname) {
 			s.Log("App is NOT open!")
 
-			addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", false)
+			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", runID.Value(), hostIP.Value(), false)
 			if crash = errorDetector.GetHighError(); len(crash.CrashLogs) > 0 {
 				s.Logf("App has error logs: %s/n %s/n %s/n", crash.CrashType, crash.CrashMsg, crash.CrashLogs)
 
@@ -346,7 +372,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// ####   Check Amace Window    #######
 		// ####################################
 		s.Log("Checking AMAC-E: ")
-		arcWindow, status, err := checkAppStatus(ctx, tconn, s, d, appPack.Pname, appPack.Aname)
+		arcWindow, status, initState, err := checkAppStatus(ctx, tconn, s, d, appPack.Pname, appPack.Aname)
+
 		if err != nil {
 			s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
 			res, err := postData(
@@ -370,7 +397,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		} else {
 			tmpAppType = appInfo.Info.AppType
 		}
-		addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App Window Status Verification Image.", true)
+		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App Window Status Verification Image.", runID.Value(), hostIP.Value(), true)
 
 		// ####################################
 		// ####   Check Errors Again    #######
@@ -385,7 +412,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			if !amace.IsAppOpen(ctx, a, appPack.Pname) {
 				s.Log("App is NOT open!")
 
-				addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", false)
+				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", runID.Value(), hostIP.Value(), false)
 				res, err := postData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
 					s, buildInfo, secret, deviceInfo)
@@ -410,7 +437,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 				} else if isBlkScreen {
 					testing.ContextLog(ctx, "App HAS black screen: ")
-					addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App crashed with black screen.", false)
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App crashed with black screen.", runID.Value(), hostIP.Value(), false)
 					res, err := postData(
 						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
 						s, buildInfo, secret, deviceInfo)
@@ -429,14 +456,20 @@ func AMACE(ctx context.Context, s *testing.State) {
 				} else {
 					testing.ContextLog(ctx, "App DOES NOT have black screen: ")
 				}
-				addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App open with detected error, check for black screen.", false)
+				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App open with detected error, check for black screen.", runID.Value(), hostIP.Value(), false)
 
 			}
 
 		}
 
-		addHistoryWithImage(ctx, tconn, s, &appHistory, deviceInfo, appPack.Pname, "App isnt broken.", false)
+		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App isnt broken.", runID.Value(), hostIP.Value(), false)
 		finalLogs = amace.GetFinalLogs(crash)
+
+		// ####################################
+		// ####   Attemp Login      	#######
+		// ####################################
+		preFBLogin := false
+		_, err = amace.AttemptLogins(ctx, a, tconn, d, cr, keyboard, &appHistory, hostIP.Value(), account.Value(), appInfo.PackageName, runID.Value(), deviceInfo, ac, initState, preFBLogin)
 
 		// ####################################
 		// ####   Post APP Results      #######
@@ -469,15 +502,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 }
 
-func addHistoryWithImage(ctx context.Context, tconn *chrome.TestConn, s *testing.State, ah *amace.AppHistory, device, packageName, histMsg string, viaChrome bool) {
-	hs := fmt.Sprint(len(ah.History))
-	s.Log("Getting history len: ", ah.History, len(ah.History))
-	imgPath := amace.PostSS(ctx, tconn, s, device, packageName, hs, runID.Value(), hostIP.Value(), viaChrome)
-	ah.AddHistory(histMsg, imgPath)
-}
-
 // Check out WaitWindowFinishAnimating, might want to use this as well WaitWindowFinishAnimating
-func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.State, d *ui.Device, pkgName, appName string) (*ash.Window, amace.AppStatus, error) {
+func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.State, d *ui.Device, pkgName, appName string) (*ash.Window, amace.AppStatus, ash.WindowStateType, error) {
 	// 1. Check window size
 	// If launched Maximized:
 	// Potentail candidate for FS -> Amace
@@ -499,6 +525,7 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 
 	windowChan := make(chan *ash.Window, 1)
 	errorChan := make(chan string, 1)
+	var initState ash.WindowStateType
 	var result *ash.Window
 	var isFullScreen bool
 	s.Log("Getting window state ")
@@ -508,18 +535,19 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 	select {
 	case result = <-windowChan:
 		s.Log("result window State: ", result.State)
+		initState = result.State
 	case err := <-errorChan:
 		// Handle the result
 		s.Log("result window err: ", err)
-		return nil, amace.Fail, errors.New(err)
+		return nil, amace.Fail, ash.WindowStateNormal, errors.New(err)
 	case <-time.After(time.Second * 5):
 		// Handle timeout
 		s.Log("Timeout occurred while getting ARC window state")
-		return nil, amace.Fail, errors.New("Timeout while getting ARC window state")
+		return nil, amace.Fail, ash.WindowStateNormal, errors.New("Timeout while getting ARC window state")
 	}
 	if result == nil {
 		s.Log("Window returned was nil")
-		return nil, amace.Fail, errors.New("Window is nil")
+		return nil, amace.Fail, ash.WindowStateNormal, errors.New("Window is nil")
 	}
 
 	if result.WindowType == ash.WindowTypeExtension {
@@ -527,7 +555,7 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 		if strings.ToLower(result.Title) != strings.ToLower(appName) {
 			s.Logf("💥✅❌❌✅💥 Found PWA for %s but Window Title does not match appName: %s", result.Title, appName)
 		}
-		return result, amace.PWA, nil
+		return result, amace.PWA, initState, nil
 	}
 
 	isFullOrMax := result.State == ash.WindowStateMaximized || result.State == ash.WindowStateFullscreen
@@ -538,14 +566,14 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 		s.Log("App is  Fullscreen, but can resize ")
 	} else if isFullOrMax && !result.CanResize {
 		s.Log("✅ App is O4C since its Fullscreen, no resize")
-		return result, amace.O4CFullScreenOnly, nil
+		return result, amace.O4CFullScreenOnly, initState, nil
 	}
 
 	if isFullScreen {
 		_, err := ash.SetARCAppWindowStateAndWait(ctx, tconn, pkgName, ash.WindowStateNormal)
 		if err != nil {
 			s.Log("Failed to set ARC window state: ", err)
-			return result, amace.Fail, errors.New("continue")
+			return result, amace.Fail, initState, errors.New("continue")
 		}
 	}
 
@@ -557,22 +585,22 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 	case err := <-errorChan:
 		// Handle the result
 		s.Log("result window err: ", err)
-		return nil, amace.Fail, errors.New(err)
+		return nil, amace.Fail, initState, errors.New(err)
 	case <-time.After(time.Second * 5):
 		// Handle timeout
 		s.Log("Timeout occurred while getting ARC window state")
-		return nil, amace.Fail, errors.New("Timeout while getting ARC window state")
+		return nil, amace.Fail, initState, errors.New("Timeout while getting ARC window state")
 	}
 	if result == nil {
 		s.Log("Window returned was nil")
-		return nil, amace.Fail, errors.New("Window is nil")
+		return nil, amace.Fail, initState, errors.New("Window is nil")
 	}
 
 	// At this point, we have a restored/ Normal window
 	if err := checkVisibility(ctx, tconn, centerButtonClassName, false /* visible */); err != nil {
 		if err.Error() == "failed to start : failed to start activity: exit status 255" {
 			s.Log("App error : ", err)
-			return result, amace.Fail, errors.New("continue")
+			return result, amace.Fail, initState, errors.New("continue")
 		}
 		// If the error was not a failure error, we know the AMACE-E Label is present.
 		ui := uiauto.New(tconn)
@@ -580,7 +608,7 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 		nodeInfo, err := ui.Info(ctx, centerBtn) // Returns info about the node, and more importantly, the window status
 		if err != nil {
 			s.Log("Failed to find the node info")
-			return result, amace.Fail, errors.New("failed to find the node info")
+			return result, amace.Fail, initState, errors.New("failed to find the node info")
 		}
 
 		if nodeInfo != nil {
@@ -600,20 +628,20 @@ func checkAppStatus(ctx context.Context, tconn *chrome.TestConn, s *testing.Stat
 
 			if nodeInfo.Restriction == restriction.Disabled {
 				if result.BoundsInRoot.Width < result.BoundsInRoot.Height {
-					return result, amace.IsLockedPAmacE, nil
+					return result, amace.IsLockedPAmacE, initState, nil
 				}
-				return result, amace.IsLockedTAmacE, nil
+				return result, amace.IsLockedTAmacE, initState, nil
 			}
 		} else {
-			return result, amace.Fail, errors.New("nodeInfo was nil")
+			return result, amace.Fail, initState, errors.New("nodeInfo was nil")
 		}
 
 		if isFullScreen {
-			return result, amace.IsFSToAmacE, nil
+			return result, amace.IsFSToAmacE, initState, nil
 		}
-		return result, amace.IsAmacE, nil
+		return result, amace.IsAmacE, initState, nil
 	}
-	return result, amace.O4C, nil
+	return result, amace.O4C, initState, nil
 }
 
 func postData(appResult amace.AppResult, s *testing.State, buildInfo, secret, deviceInfo string) (string, error) {
@@ -733,7 +761,6 @@ func getWindowState(ctx context.Context, resultChan chan<- *ash.Window, errorCha
 		return
 	}
 
-	s.Log("Thoewing error on channel: ", err)
 	if window != nil {
 		s.Log("ARC Window state: ", window.State)
 		s.Log("ARC Window state: ", window.WindowType)

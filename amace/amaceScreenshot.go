@@ -19,7 +19,7 @@ import (
 )
 
 // postSS will grab a ss, upload it to local server on host machine which posts to GCP and returns the path
-func PostSS(ctx context.Context, tconn *chrome.TestConn, s *testing.State, device, packageName, historyStep, runID, hostIP string, viaChrome bool) string {
+func PostSS(ctx context.Context, tconn *chrome.TestConn, device, packageName, historyStep, runID, hostIP string, viaChrome bool) string {
 	var ss []byte
 	var err error
 	if viaChrome {
@@ -29,7 +29,7 @@ func PostSS(ctx context.Context, tconn *chrome.TestConn, s *testing.State, devic
 	}
 
 	if err != nil {
-		s.Log("Err ss: ", err)
+		testing.ContextLog(ctx, "Err ss: ", err)
 	}
 	// destination_blob_name = f"appRuns/{run_id}/{device}/{package_name}/{hist_step}"
 	imgPath := fmt.Sprintf("amaceRuns/%s/%s/%s/%s", runID, device, packageName, historyStep)

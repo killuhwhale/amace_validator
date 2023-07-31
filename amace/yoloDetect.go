@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"go.chromium.org/tast-tests/cros/local/arc"
+	"go.chromium.org/tast-tests/cros/local/input"
 	"go.chromium.org/tast/core/testing"
 )
 
@@ -66,6 +67,16 @@ func (yr *YoloResult) SendText(ctx context.Context, a *arc.ARC, text string) boo
 	return true
 }
 
+func (yr *YoloResult) SendTextCr(ctx context.Context, keyboard *input.KeyboardEventWriter, text string) bool {
+	if err := keyboard.Type(ctx, text); err != nil {
+		testing.ContextLog(ctx, "Failed to write events: ", err)
+		return false
+	}
+
+	testing.ContextLog(ctx, "Sent: ", text)
+	return true
+}
+
 func (yr *YoloResult) Click(ctx context.Context, a *arc.ARC, label string) bool {
 	_, exists := yr.Data[label]
 	if !exists {
@@ -76,7 +87,7 @@ func (yr *YoloResult) Click(ctx context.Context, a *arc.ARC, label string) bool 
 	btn, btns := btns[len(btns)-1], btns[:len(btns)-1] // pop operation, store last element, update slice w/out last element
 	x := (btn.Coords[0][0] + btn.Coords[1][0]) / 2     // mid point
 	y := (btn.Coords[0][1] + btn.Coords[1][1]) / 2
-	testing.ContextLog(ctx, "Tapping: ", fmt.Sprint(x), fmt.Sprint(y))
+	testing.ContextLog(ctx, "Tapping: ", fmt.Sprint(x), ", ", fmt.Sprint(y))
 	cmd := a.Command(ctx, "input", "tap", fmt.Sprint(x), fmt.Sprint(y))
 	output, err := cmd.Output()
 	if err != nil {
@@ -84,6 +95,31 @@ func (yr *YoloResult) Click(ctx context.Context, a *arc.ARC, label string) bool 
 		return false
 	}
 	testing.ContextLog(ctx, "Tapped!", output)
+	return true
+}
+
+func (yr *YoloResult) Keys() []string {
+	keys := make([]string, 0, len(yr.Data))
+	for k := range yr.Data {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (yr *YoloResult) Dequeue(ctx context.Context, label string) bool {
+
+	data, exists := yr.Data[label]
+	if !exists {
+		return false
+	}
+
+	if len(data) == 1 {
+		// Remove label entirely
+		delete(yr.Data, label)
+	} else {
+		yr.Data[label] = yr.Data[label][1:]
+	}
+
 	return true
 }
 
@@ -155,27 +191,33 @@ func YoloDetect(ctx context.Context, hostIP string) (YoloResult, error) {
 	testing.ContextLog(ctx, "")
 	testing.ContextLog(ctx, "")
 	testing.ContextLog(ctx, "Yolo: ")
-	testing.ContextLog(ctx, "num diff names/labels: ", len(yoloResult.Data), yoloResult.Data["Continue"])
+	testing.ContextLog(ctx, "num diff names/labels: ", len(yoloResult.Data))
 
-	if len(yoloResult.Data) == 0 {
-		// GoBigSleepLint Wait for app to load some more and potentially fail...
-		testing.Sleep(ctx, 5*time.Second)
+	keys := make([]string, 0, len(yoloResult.Data))
+	for k := range yoloResult.Data {
+		keys = append(keys, k)
 	}
+	testing.ContextLog(ctx, "Labels Found: ", keys)
 
-	for key, values := range yoloResult.Data {
-		if key == "Continue" {
-			testing.ContextLog(ctx, "Contine Button Found")
-			testing.ContextLog(ctx, "Found %d buttons.", len(values))
-			for _, button := range values {
-				topLeft := button.Coords[0]
-				bottomRight := button.Coords[1]
+	// if len(yoloResult.Data) == 0 {
+	// 	// GoBigSleepLint Wait for app to load some more and potentially fail...
+	// 	testing.Sleep(ctx, 5*time.Second)
+	// }
 
-				testing.ContextLogf(ctx, "Found button at: %v, %v w/ conf: %.3f", topLeft, bottomRight, button.Conf)
+	// for key, values := range yoloResult.Data {
+	// 	if key == "Continue" {
+	// 		testing.ContextLog(ctx, "Contine Button Found")
+	// 		testing.ContextLog(ctx, "Found %d buttons.", len(values))
+	// 		for _, button := range values {
+	// 			topLeft := button.Coords[0]
+	// 			bottomRight := button.Coords[1]
 
-			}
+	// 			testing.ContextLogf(ctx, "Found button at: %v, %v w/ conf: %.3f", topLeft, bottomRight, button.Conf)
 
-		}
-	}
+	// 		}
+
+	// 	}
+	// }
 	testing.ContextLog(ctx, "")
 	testing.ContextLog(ctx, "")
 	testing.ContextLog(ctx, "")
@@ -183,3 +225,15 @@ func YoloDetect(ctx context.Context, hostIP string) (YoloResult, error) {
 	testing.ContextLogf(ctx, "Detection took: %s\n", elapsed)
 	return yoloResult, nil
 }
+
+// def __attempt_click_continue(self):
+// 	'''
+// 		Attempts new detection and clicks a continue button.
+
+// 		Used to click 'save' when loggin into Facebook app.
+// 	'''
+// 	results: defaultdict = self.__detect()
+// 	if CONTINUE in results:
+// 		results[CONTINUE], tapped = self.__click_button(results[CONTINUE])
+// 		return True
+// 	return False

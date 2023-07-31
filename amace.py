@@ -21,7 +21,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from multiprocessing import Process
 from time import sleep, time
-from typing import List
+from typing import Dict, List
 
 
 
@@ -72,7 +72,7 @@ class AMACE:
     If the test fails early for any reason, the test will be re run.
     """
 
-    def __init__(self, device: str, BASE_URL: str, host_ip: str, run_id: str, run_ts: int, test_account: str):
+    def __init__(self, device: str, BASE_URL: str, host_ip: str, run_id: str, run_ts: int, test_account: str, creds: Dict[str, Dict[str, str]]):
         self.__test_account = test_account
         self.__device = device
         self.__current_package = ""
@@ -86,6 +86,7 @@ class AMACE:
         self.__api_key = None
         self.__run_id = run_id
         self.__run_ts = run_ts
+        self.__creds = json.dumps(creds)
         self.__request_body = None
         self.__get_apps()
         self.__get_api_key()
@@ -161,7 +162,7 @@ class AMACE:
 
     def __run_tast(self):
         """Command for the TAST test with required params."""
-        cmd = ("tast", "-verbose", "run",  f"-var=arc.amace.device={self.__device}", f"-var=arc.amace.hostip={self.__host_ip}", f"-var=arc.amace.posturl={self.__BASE_URL}" , f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", f"-var=ui.gaiaPoolDefault={self.__test_account}", f"-var=arc.amace.account={self.__test_account}" , self.__device, "arc.AMACE")
+        cmd = ("tast", "-verbose", "run",  f"-var=arc.amace.creds={self.__creds}",f"-var=arc.amace.device={self.__device}", f"-var=arc.amace.hostip={self.__host_ip}", f"-var=arc.amace.posturl={self.__BASE_URL}" , f"-var=arc.amace.startat={self.__current_package}", f"-var=arc.amace.runts={self.__run_ts}", f"-var=arc.amace.runid={self.__run_id}", f"-var=ui.gaiaPoolDefault={self.__test_account}", f"-var=arc.amace.account={self.__test_account}" , self.__device, "arc.AMACE")
 
         return self.__run_command(cmd)
 
@@ -250,14 +251,26 @@ def read_secret():
     return secret
 
 
-def task(device: str, url, host_ip, run_id, run_ts, test_account):
-    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, run_id=run_id, run_ts=run_ts, test_account=test_account)
+def fetch_app_creds():
+    '''Fetch apps creds from backend. NextJS -> FirebaseDB'''
+    headers = {"Authorization": read_secret()}
+    res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
+    # res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
+    result = json.loads(res.text)
+
+    creds = result['data']['data']
+
+    print(f"{creds=}")
+    return creds
+
+def task(device: str, url, host_ip, run_id, run_ts, test_account, creds):
+    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds)
     amace.start()
 
 
 class MultiprocessTaskRunner:
     ''' Starts running AMACE() on each device/ ip. '''
-    def __init__(self, url: str, host_ip: str,  ips: List[str], test_account: str):
+    def __init__(self, url: str, host_ip: str,  ips: List[str], test_account: str, creds: Dict[str, Dict[str, str]]):
 
         self.__test_account = test_account
         self.__run_ts = int(time()*1000)
@@ -265,11 +278,12 @@ class MultiprocessTaskRunner:
         self.__url = url
         self.__host_ip = host_ip
         self.__ips = ips
+        self.__creds = creds
         self.__processes = []
 
     def __start_process(self, ip):
         try:
-            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__run_id, self.__run_ts, self.__test_account))
+            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__run_id, self.__run_ts, self.__test_account, self.__creds))
             process.start()
             self.__processes.append(process)
         except Exception as error:
@@ -284,12 +298,10 @@ class MultiprocessTaskRunner:
             p.join()
 
 
-def start_server(path):
-    """Given the path to manage.py, start the django dev server."""
 
-    cmd = [f"{path}/manage.py", "runserver", f"{host_ip}:8000"]
 if __name__ == "__main__":
     load_apps()
+    creds = fetch_app_creds()
     parser = argparse.ArgumentParser(description="App validation.")
     parser.add_argument("-d", "--device",
                         help="Device to run on DUT.",
@@ -320,6 +332,6 @@ if __name__ == "__main__":
     ips = [d for d in ags.device.split(" ") if d]
     print("Starting on devices: ", ips)
     # sleep(10)
-    tr = MultiprocessTaskRunner(url, host_ip, ips=ips, test_account=test_account)
+    tr = MultiprocessTaskRunner(url, host_ip, ips=ips, test_account=test_account, creds=creds)
 
     tr.run()

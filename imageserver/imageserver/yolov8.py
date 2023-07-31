@@ -17,7 +17,9 @@ class YoloV8:
             'save': False,
             'save_conf': False,
             'verbose': False,
+            'project': BASE_DIR, # Affects save location. By default it will check settings file at ~/.config/Ultralytics
         }
+
 
     def detect(self, src: Image):
         '''
@@ -37,10 +39,11 @@ class YoloV8:
             p1, p2 = [int(box[0]), int(box[1])], [int(box[2]), int(box[3])]
             # result[label].append((p1, p2, conf, )) # Old
             # Adapt to be consumable by GO Lang
-            result[label].append({
-                "coords": [p1, p2],
-                "conf": conf
-            })
+            if conf > 0.52:
+                result[label].append({
+                    "coords": [p1, p2],
+                    "conf": conf
+                })
         end = perf_counter()
 
         print(f"Model inference took: {(end - start):.6f}")

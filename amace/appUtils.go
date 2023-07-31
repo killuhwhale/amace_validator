@@ -4,6 +4,8 @@
 
 package amace
 
+// More utility func ./cros/local/power/util/app_util.go
+
 import (
 	"context"
 	"io/ioutil"
@@ -299,13 +301,78 @@ func UninstallApp(ctx context.Context, s *testing.State, arc *arc.ARC, pname str
 	return nil
 }
 
-func LaunchApp(ctx context.Context, s *testing.State, arc *arc.ARC, pname string) error {
+func LaunchApp(ctx context.Context, arc *arc.ARC, pname string) error {
 	// cmd = ('adb','-t', transport_id, 'shell', 'monkey', '--pct-syskeys', '0', '-p', package_name, '-c', 'android.intent.category.LAUNCHER', '1')
 	cmd := arc.Command(ctx, "monkey", "--pct-syskeys", "0", "-p", pname, "-c", "android.intent.category.LAUNCHER", "1")
 	output, err := cmd.Output()
 	if err != nil {
 		return err
 	}
-	s.Log("Output: ", output)
+	testing.ContextLog(ctx, "Output: ", output)
 	return nil
+}
+
+func CurrentActivity(ctx context.Context, a *arc.ARC) string {
+	cmd := a.Command(ctx, "dumpsys", "activity")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	outStr := strings.TrimSpace(string(output))
+	// testing.ContextLog(ctx, "Checking IsAppOpen: ", outStr)
+
+	// query = r".*{.*\s.*\s(?P<package_name>.*)/(?P<act_name>[\S\.]*)\s*.*}"
+
+	lines := GrepLines(outStr, "mFocusedWindow")
+	// for _, line := range lines {
+	// 	testing.ContextLogf(ctx, "Current act: %s", line)
+	// }
+	if len(lines) > 0 {
+		idx := strings.Index(lines[0], "/")
+		act := lines[0][idx+1 : len(lines[0])-1]
+		testing.ContextLogf(ctx, "Current Act: %s", act)
+		return act
+	}
+	return ""
+}
+
+func ClearApp(ctx context.Context, a *arc.ARC, pkgName string) bool {
+	cmd := a.Command(ctx, "pm", "clear", pkgName)
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	outStr := strings.TrimSpace(string(output))
+	testing.ContextLog(ctx, "Cleared app: ", outStr)
+	return true
+}
+
+func IsAppInstalled(ctx context.Context, a *arc.ARC, pkgName string) bool {
+	cmd := a.Command(ctx, "pm", "list", "packages")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	outStr := strings.TrimSpace(string(output))
+
+	lines := GrepLines(outStr, pkgName)
+
+	for _, line := range lines {
+		if strings.Contains(line, pkgName) {
+			return true
+		}
+	}
+	testing.ContextLogf(ctx, "Failed to find %s in installed app list: %s", pkgName, outStr)
+	return false
+}
+
+func CloseApp(ctx context.Context, a *arc.ARC, pkgName string) bool {
+	cmd := a.Command(ctx, "am", "force-stop", pkgName)
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	outStr := strings.TrimSpace(string(output))
+	testing.ContextLog(ctx, "Closed app: ", outStr)
+	return true
 }

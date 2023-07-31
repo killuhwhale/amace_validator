@@ -22,6 +22,7 @@ If you need to delete your chroot, use cros_sdk --delete to delete it properly. 
     - Send email
     - Object detection
 
+## dev start
     source bin/activate
     ./imageserver/manage.py runserver 192.168.1.229:8000
 
@@ -46,6 +47,35 @@ tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.
 
 ## Push data to localhost (or other url)
 tast -verbose run -var=arc.amace.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
+
+
+
+# Global App List
+## collection(GlobalAMACEStatus).doc(packageName).collection(kevin).doc(build 0).[status | version | packageName]
+We can place the latest status here with version. We dont expect the status to change from Device to Device so we can maintain a global list of latest status....
+ As long as all devices are on ARC-R, we expect the status to only change on an update app version.
+ We wont update if the app version is not newer....
+ We will still check on new device builds...
+
+ So we process an app, Roblox version 1 on Kevin B 1
+ Get latest build for kevin: collection(GlobalAMACEStatus).doc(packageName).collection(kevin).doc(@latest) => build 0
+ We get Build 0 and we are on build 1, so we continue to check....
+ We then check the verison: .doc(@latest).version => 0
+     .doc(@latest).version < Version 1 ? continue check: skip package, last checked version is >= current version
+
+ If we are on a newer build and have a newer app, we just continue with the run, install launch, etc.....
+ Then we update the list:
+     - collection(GlobalAMACEStatus).doc(packageName).collection(kevin).doc(1).version = 1
+     - collection(GlobalAMACEStatus).doc(packageName).collection(kevin).doc(1).status = XX
+
+ Then update the Global List top level if verison is newer:
+     collection(GlobalAMACEStatus).doc(packageName).version => 0
+     collection(GlobalAMACEStatus).doc(packageName).version < Version 1 ? collection(GlobalAMACEStatus).doc(packageName).version = 1 : "Do nothing, app version is not newer. We must check because of different devices can potentially have varying app verisons..."
+
+    collection(GlobalAMACEStatus).doc(packageName).date = new Date() // Update date
+
+
+ Top level status has a goal, the goal is to provide the latest status regardless of device. We expect an app verison to behave the same on all ARC-R devices....
 
 
 
