@@ -22,6 +22,27 @@ import (
 	"go.chromium.org/tast/core/testing"
 )
 
+type LoginResult struct {
+	Google   bool
+	Facebook bool
+	Email    bool
+}
+
+func (lr *LoginResult) Encode() int8 {
+	// For each result, ecode to a bit
+	var result int8 = 8
+	if lr.Google {
+		result |= 1 << 0
+	}
+	if lr.Facebook {
+		result |= 1 << 1
+	}
+	if lr.Email {
+		result |= 1 << 2
+	}
+	return result
+}
+
 type AppCred struct {
 	L string
 	P string
@@ -30,7 +51,8 @@ type AppCred struct {
 type AppCreds map[string]AppCred
 
 // AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App crashed with black screen.", runID.Value(), hostIP.Value(), false)
-func AttemptLogins(ctx context.Context, a *arc.ARC, tconn *chrome.TestConn, d *ui.Device, cr *chrome.Chrome, keyboard *input.KeyboardEventWriter, ah *AppHistory, hostIP, accountEmail, pkgName, runID, deviceInfo string, appCreds AppCreds, initState ash.WindowStateType, preFBLogin bool) (bool, error) {
+func AttemptLogins(ctx context.Context, a *arc.ARC, tconn *chrome.TestConn, d *ui.Device, cr *chrome.Chrome, keyboard *input.KeyboardEventWriter, ah *AppHistory, hostIP, accountEmail, pkgName, runID, deviceInfo string, appCreds AppCreds, initState ash.WindowStateType, preFBLogin bool) (LoginResult, error) {
+	lr := LoginResult{Google: false, Facebook: false, Email: false}
 	// For each login method:
 	// Close App, Clear app storage, open app
 	// Reset Error detector time
@@ -61,14 +83,19 @@ func AttemptLogins(ctx context.Context, a *arc.ARC, tconn *chrome.TestConn, d *u
 	}
 
 	// Login Google
-	if false && !preFBLogin {
+	if !preFBLogin {
 		loggedIn, err := LoginGoogle(ctx, a, d, hostIP, accountEmail)
 		if err != nil {
 			// TODO add to LoginResults
 			testing.ContextLog(ctx, "Failed to login with Google")
 		}
+		if loggedIn {
+			lr.Google = true
+		}
 		msg := loggedInOrNahMsg(loggedIn, "Google")
 		testing.ContextLog(ctx, "Logged in google: ", msg)
+		// GoBigSleepLint Need to wait for app to sign in...
+		testing.Sleep(ctx, 3*time.Second)
 		AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, msg, runID, hostIP, false)
 		ClearApp(ctx, a, pkgName)
 		CloseApp(ctx, a, pkgName)
@@ -84,8 +111,13 @@ func AttemptLogins(ctx context.Context, a *arc.ARC, tconn *chrome.TestConn, d *u
 			// TODO add to LoginResults
 			testing.ContextLog(ctx, "Failed to login with facebook")
 		}
+		if loggedIn {
+			lr.Facebook = true
+		}
 		msg = loggedInOrNahMsg(loggedIn, "Facebook")
 		testing.ContextLog(ctx, "Logged in facebook: ", msg)
+		// GoBigSleepLint Need to wait for app to sign in...
+		testing.Sleep(ctx, 3*time.Second)
 		AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, msg, runID, hostIP, false)
 		ClearApp(ctx, a, pkgName)
 		CloseApp(ctx, a, pkgName)
@@ -103,15 +135,21 @@ func AttemptLogins(ctx context.Context, a *arc.ARC, tconn *chrome.TestConn, d *u
 			// TODO add to LoginResults
 			testing.ContextLog(ctx, "Failed to login with Email")
 		}
+		if loggedIn {
+			lr.Email = true
+		}
 		msg = loggedInOrNahMsg(loggedIn, "Email")
 		testing.ContextLog(ctx, "Logged in Email: ", msg)
+
+		// GoBigSleepLint Need to wait for app to sign in...
+		testing.Sleep(ctx, 3*time.Second)
 		AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, msg, runID, hostIP, false)
 
 	} else {
 		testing.ContextLog(ctx, "No App Cred available")
 	}
 
-	return true, nil
+	return lr, nil
 }
 
 func LoginGoogle(ctx context.Context, a *arc.ARC, d *ui.Device, hostIP, account string) (bool, error) {
@@ -264,16 +302,12 @@ func LoginEmail(ctx context.Context, a *arc.ARC, d *ui.Device, keyboard *input.K
 
 		// TODO() Check and close smart lock
 		yr, err := YoloDetect(ctx, hostIP) // Returns a yoloResult
-		AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, strings.Join(yr.Keys(), " - "), runID, hostIP, false)
+		AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, "Labels found: "+strings.Join(yr.Keys(), " - "), runID, hostIP, false)
 		if err != nil {
 			testing.ContextLog(ctx, "Failed to get YoloResult: ", err)
 		}
 		hasDetection := len(yr.Data) > 0
 		if !hasDetection {
-			// Retry new detection
-			// yr, err = YoloDetect(ctx, hostIP) // Returns a yoloResult
-			// AddHistoryWithImage(ctx, tconn, ah, deviceInfo, pkgName, strings.Join(yr.Keys(), " - "), runID, hostIP, false)
-			// retries--
 			testing.Sleep(ctx, 2*time.Second)
 			continue
 		} else if _, labelExists := yr.Data["loginfield"]; labelExists && !loginEntered {

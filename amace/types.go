@@ -95,6 +95,8 @@ const (
 	IsAmacE = 110 // 110
 	// PWA indicates app is PWA (TikTok)
 	PWA = 120 // 120
+	// SKIPPED indicates app was skipped and not checked
+	SKIPPEDAMACE = 255 // 1023
 )
 
 func (ap *AppStatus) String() string {
@@ -113,6 +115,7 @@ type AppResult struct {
 	AppVersion   string
 	AppHistory   *AppHistory
 	Logs         string
+	LoginResults int8
 }
 
 func (ar AppResult) String() string {

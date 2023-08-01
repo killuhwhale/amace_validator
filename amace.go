@@ -93,6 +93,21 @@ var creds = testing.RegisterVarString(
 	"na",
 	"App account creds by package name.",
 )
+var skipAmace = testing.RegisterVarString(
+	"arc.amace.skipamace",
+	"na",
+	"Skips Amace.",
+)
+var skipBrokenCheck = testing.RegisterVarString(
+	"arc.amace.skipbrokencheck",
+	"na",
+	"Skips BrokenCheck.",
+)
+var skipLoggIn = testing.RegisterVarString(
+	"arc.amace.skiploggin",
+	"na",
+	"Skips LoggIn.",
+)
 
 // var onlyAMACEStatus = testing.RegisterVarString(
 // 	"arc.amace.account",
@@ -114,6 +129,7 @@ type requestBody struct {
 	AppVersion   string                `json:"appVersion"`
 	AppHistory   *amace.AppHistory     `json:"history"`
 	Logs         string                `json:"logs"`
+	LoginResults int8                  `json:"loginResults"`
 }
 
 var centerButtonClassName = "FrameCenterButton"
@@ -213,20 +229,21 @@ func AMACE(ctx context.Context, s *testing.State) {
 	var status amace.AppStatus
 	var finalLogs string
 	var tmpAppType amace.AppType
-
-	fbPreLoggedIn := amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
-	testing.ContextLog(ctx, "Pre login facebook: ", fbPreLoggedIn)
-
-	testing.ContextLog(ctx, "Facebook logged in: ", fbPreLoggedIn)
-
 	ar := amace.AppResult{}
-	ar = amace.AppResult{App: amace.AppPackage{Pname: amace.FacebookPackageName, Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs}
 
-	res, err := postData(ar, s, buildInfo, secret, deviceInfo)
-	if err != nil {
-		s.Log("Error posting: ", err)
+	var fbPreLoggedIn = false
+	if skipLoggIn.Value() != "t" {
+		fbPreLoggedIn = amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
+		testing.ContextLog(ctx, "Pre login facebook: ", fbPreLoggedIn)
+
+		testing.ContextLog(ctx, "Facebook logged in: ", fbPreLoggedIn)
+		ar = amace.AppResult{App: amace.AppPackage{Pname: "com.facebook.katana.prelogin", Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, LoginResults: 10}
+		res, err := postData(ar, s, buildInfo, secret, deviceInfo)
+		if err != nil {
+			s.Log("Error posting: ", err)
+		}
+		s.Log("Post res: ", res)
 	}
-	s.Log("Post res: ", res)
 
 	for _, appPack := range testApps {
 		// Reset Final logs
@@ -341,7 +358,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		s.Log("Checking errors: ")
 		errorDetector.DetectErrors()
 
-		if !amace.IsAppOpen(ctx, a, appPack.Pname) {
+		if !amace.IsAppOpen(ctx, a, appPack.Pname) && skipBrokenCheck.Value() != "t" {
 			s.Log("App is NOT open!")
 
 			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", runID.Value(), hostIP.Value(), false)
@@ -364,47 +381,53 @@ func AMACE(ctx context.Context, s *testing.State) {
 				}
 				continue
 			}
-		} else {
+		} else if skipBrokenCheck.Value() != "t" {
 			s.Log("App is still open!")
 		}
 
 		// ####################################
 		// ####   Check Amace Window    #######
 		// ####################################
-		s.Log("Checking AMAC-E: ")
-		arcWindow, status, initState, err := checkAppStatus(ctx, tconn, s, d, appPack.Pname, appPack.Aname)
+		var arcWindow *ash.Window
+		arcWindow = nil
+		status = amace.SKIPPEDAMACE
+		initState := ash.WindowStateNormal
+		if skipAmace.Value() != "t" {
+			s.Log("Checking AMAC-E: ")
+			arcWindow, status, initState, err = checkAppStatus(ctx, tconn, s, d, appPack.Pname, appPack.Aname)
 
-		if err != nil {
-			s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
-			res, err := postData(
-				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs},
-				s, buildInfo, secret, deviceInfo)
 			if err != nil {
-				s.Log("Error posting: ", err)
+				s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
+				res, err := postData(
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs},
+					s, buildInfo, secret, deviceInfo)
+				if err != nil {
+					s.Log("Error posting: ", err)
 
-			}
-			s.Log("Post res: ", res)
-			if err := a.Uninstall(ctx, appPack.Pname); err != nil {
-				if err := amace.UninstallApp(ctx, s, a, appPack.Pname); err != nil {
-					s.Log("Failed to uninstall app: ", appPack.Aname)
 				}
+				s.Log("Post res: ", res)
+				if err := a.Uninstall(ctx, appPack.Pname); err != nil {
+					if err := amace.UninstallApp(ctx, s, a, appPack.Pname); err != nil {
+						s.Log("Failed to uninstall app: ", appPack.Aname)
+					}
+				}
+				continue
 			}
-			continue
-		}
 
-		if status == amace.PWA {
-			tmpAppType = amace.PWAAPP
-		} else {
-			tmpAppType = appInfo.Info.AppType
+			if status == amace.PWA {
+				tmpAppType = amace.PWAAPP
+			} else {
+				tmpAppType = appInfo.Info.AppType
+			}
+			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App Window Status Verification Image.", runID.Value(), hostIP.Value(), true)
 		}
-		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App Window Status Verification Image.", runID.Value(), hostIP.Value(), true)
 
 		// ####################################
 		// ####   Check Errors Again    #######
 		// ####################################
 		// Check if app is still open after checking window status, if not open, check error.
 
-		if crash = errorDetector.GetHighError(); len(crash.CrashLogs) > 0 {
+		if crash = errorDetector.GetHighError(); len(crash.CrashLogs) > 0 && skipBrokenCheck.Value() != "t" {
 			s.Logf("App has error logs: %s/n %s/n %s/n", crash.CrashType, crash.CrashMsg, crash.CrashLogs)
 
 			finalLogs = amace.GetFinalLogs(crash)
@@ -460,16 +483,21 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 			}
 
+		} else if skipBrokenCheck.Value() != "t" {
+			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App isnt broken.", runID.Value(), hostIP.Value(), false)
+			finalLogs = amace.GetFinalLogs(crash)
 		}
-
-		amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App isnt broken.", runID.Value(), hostIP.Value(), false)
-		finalLogs = amace.GetFinalLogs(crash)
 
 		// ####################################
 		// ####   Attemp Login      	#######
 		// ####################################
-		preFBLogin := false
-		_, err = amace.AttemptLogins(ctx, a, tconn, d, cr, keyboard, &appHistory, hostIP.Value(), account.Value(), appInfo.PackageName, runID.Value(), deviceInfo, ac, initState, preFBLogin)
+		loginResults := int8(8) // bin(8) == 1000 ->indicates that 3 login methods werent successful...
+		if skipLoggIn.Value() != "t" {
+			preFBLogin := false
+			lr, _ := amace.AttemptLogins(ctx, a, tconn, d, cr, keyboard, &appHistory, hostIP.Value(), account.Value(), appInfo.PackageName, runID.Value(), deviceInfo, ac, initState, preFBLogin)
+			loginResults = lr.Encode()
+
+		}
 
 		// ####################################
 		// ####   Post APP Results      #######
@@ -479,7 +507,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 		// We only detect a PWA via Status (amace status), we need to override the app/game check to report its a PWA too.
 
-		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs}
+		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults}
 		s.Log("💥✅❌✅💥 App Result: ", ar)
 
 		res, err := postData(ar, s, buildInfo, secret, deviceInfo)
@@ -661,6 +689,7 @@ func postData(appResult amace.AppResult, s *testing.State, buildInfo, secret, de
 		appResult.AppVersion,
 		appResult.AppHistory,
 		appResult.Logs,
+		appResult.LoginResults,
 	}
 
 	// Convert the data to JSON

@@ -30,7 +30,6 @@ cp $amace_dir/types.go                  ./amace/types.go
 cp $amace_dir/utils.go                  ./amace/utils.go
 cp $amace_dir/yoloDetect.go             ./amace/yoloDetect.go
 
-
 # Main Test
 cp $directory/amace.go ./amace.go
 cp $directory/amace.py ./amace.py

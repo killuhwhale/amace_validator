@@ -1,3 +1,21 @@
+# Capablilities/ Features
+
+1. Install App
+2. Launch App
+3. Check Logcat Errors on Launch
+    - winDeath
+    - forceRmRecord
+    - fDebug
+    - fatalException
+    - procDied
+    - anr
+4. Check App for Black Screen
+5. Get App Version
+6. Get App Type - App, Game, PWA
+7. Get AMACE Status
+8. Attempt Login w/ Google, Facebook and Email.
+9. Multi device execution.
+
 
 
 # Auth w/ GCP
@@ -13,7 +31,6 @@ code ./tast-tests ./tast
 
 # Delete Chroot
 If you need to delete your chroot, use cros_sdk --delete to delete it properly. Using rm -rf could end up deleting your source tree due to the active bind mounts.
-
 
 
 # Image Server
@@ -50,7 +67,7 @@ tast -verbose run -var=arc.amace.globalPOSTURL="http://192.168.1.229:3000/api/am
 
 
 
-# Global App List
+# Global App List - Rough Draft Impl.
 ## collection(GlobalAMACEStatus).doc(packageName).collection(kevin).doc(build 0).[status | version | packageName]
 We can place the latest status here with version. We dont expect the status to change from Device to Device so we can maintain a global list of latest status....
  As long as all devices are on ARC-R, we expect the status to only change on an update app version.
@@ -79,27 +96,11 @@ We can place the latest status here with version. We dont expect the status to c
 
 
 
-# Capablilities
 
-1. Install App
-2. Launch App
-3. Check Logcat Errors on Launch
-    - winDeath
-    - forceRmRecord
-    - fDebug
-    - fatalException
-    - procDied
-    - anr
-4. Check App for Black Screen
-5. Get App Version
-6. Get App Type
-7. Get AMACE Status
-8. Report app status on a per run basis.
-9. Run on multiple devices.
 
 
 # Notes:
-Make sure input data file does not have trailing line.
+Make sure input data file does not have trailing line. AMACE-app_list
 
 
 SSH Works
