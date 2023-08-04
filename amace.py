@@ -223,11 +223,19 @@ def get_local_ip():
     except Exception as err:
         pass
 
+    s = "10.0.0."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"10.0.0.{output[idx:idx+3]}"
+    except Exception as err:
+        pass
+
     s = "192.168.0."
     try:
         idx = output.index(s)
         idx += len(s)
-        return f"192.168.1.{output[idx:idx+3]}"
+        return f"192.168.0.{output[idx:idx+3]}"
     except Exception as err:
         print("Errir: ", err)
 
