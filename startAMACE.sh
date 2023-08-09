@@ -13,12 +13,18 @@ function usage {
     echo "  -u  string             Url of server to post results to."
     echo "                          (example: http://192.168.1.229:3000/api/amaceResult)"
     echo "  -a  string             Account for DUT."
-    echo "                          (example: http://192.168.1.229:3000/api/amaceResult)"
+    echo "                          (example: email@addr.com:password)"
+    echo "  -w  string             Skip amace check."
+    echo "                          (example: t)"
+    echo "  -b  string             Skip broken check."
+    echo "                          (example: t)"
+    echo "  -l  string             Skip login."
+    echo "                          (example: t)"
     echo ""
 }
 
 # Parse command-line options
-while getopts ":d:u:a:" opt; do
+while getopts ":d:u:a:w:b:l:" opt; do
   case ${opt} in
     d)
       # Device addresses
@@ -31,6 +37,18 @@ while getopts ":d:u:a:" opt; do
     a)
       # Account
       account=$OPTARG
+      ;;
+    w)
+      # Skip amace
+      samace=$OPTARG
+      ;;
+    b)
+      # Skip broken check
+      sbroken=$OPTARG
+      ;;
+    l)
+      # Skip login
+      slogin=$OPTARG
       ;;
     *)
       usage
@@ -48,8 +66,8 @@ done
 if [[ -z ${url} ]]; then
   echo "Using default URL"
 #   ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
-  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -a "${account}"
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}"
 else
   echo "Using URL: ${url}"
-  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}" -a "${account}"
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}"
 fi

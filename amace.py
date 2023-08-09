@@ -281,8 +281,8 @@ def read_secret():
 def fetch_app_creds():
     '''Fetch apps creds from backend. NextJS -> FirebaseDB'''
     headers = {"Authorization": read_secret()}
-    res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
-    # res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
+    # res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
+    res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
     result = json.loads(res.text)
 
     creds = result['data']['data']
