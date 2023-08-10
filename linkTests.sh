@@ -31,6 +31,7 @@ cp ./amace/colorHeap.go          $amace_dir/colorHeap.go
 cp ./amace/deviceUtils.go        $amace_dir/deviceUtils.go
 cp ./amace/dismissMiscProps.go   $amace_dir/dismissMiscProps.go
 cp ./amace/errorUtils.go         $amace_dir/errorUtils.go
+cp ./amace/facebookLogin.go      $amace_dir/facebookLogin.go
 cp ./amace/installAppUtils.go    $amace_dir/installAppUtils.go
 cp ./amace/loadFiles.go          $amace_dir/loadFiles.go
 cp ./amace/loginUtils.go         $amace_dir/loginUtils.go
