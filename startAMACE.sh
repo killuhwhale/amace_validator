@@ -23,6 +23,11 @@ function usage {
     echo ""
 }
 
+
+samace="f"
+sbroken="f"
+slogin="f"
+
 # Parse command-line options
 while getopts ":d:u:a:w:b:l:" opt; do
   case ${opt} in
