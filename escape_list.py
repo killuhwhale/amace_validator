@@ -1,23 +1,163 @@
 def escape():
-    s = """ROBLOX	com.roblox.client
-Netflix	com.netflix.mediaclient
-YouTube Kids	com.google.android.apps.youtube.kids
-Facebook Messenger	com.facebook.orca
-Free Fire	com.dts.freefireth
-Gacha Club	air.com.lunime.gachaclub
-Messenger Kids	com.facebook.talk
-Among Us!	com.innersloth.spacemafia
-Gacha Life	air.com.lunime.gachalife
-Tubi TV	com.tubitv
-Google Classroom	com.google.android.apps.classroom
-Candy Crush Soda Saga	com.king.candycrushsodasaga
-Google Photos	com.google.android.apps.photos
-Homescapes	com.playrix.homescapes
-Hangouts	com.google.android.talk
-June's Journey	net.wooga.junes_journey_hidden_object_mystery_game
-Gmail	com.google.android.gm
-YouTube Music	com.google.android.apps.youtube.music
-Viki	com.viki.android"""
+    s = """com.magnificgames.waralliance	com.magnificgames.waralliance
+com.qookkagame.sgzzlb.gp.kr	com.qookkagame.sgzzlb.gp.kr
+com.test.g17_BS01	com.test.g17_BS01
+com.topwar.gp	com.topwar.gp
+com.gamefirst.free.strategy.save.the.earth	com.gamefirst.free.strategy.save.the.earth
+com.qookkagame.sgzzlb.hkmo	com.qookkagame.sgzzlb.hkmo
+com.allstarunion.ta.tw	com.allstarunion.ta.tw
+com.playrix.township	com.playrix.township
+com.kingsgroup.sos	com.kingsgroup.sos
+com.wemade.mirm	com.wemade.mirm
+com.droidhang.ad	com.droidhang.ad
+sunbeesoft.queensidol.com	sunbeesoft.queensidol.com
+com.YoStarKR.Arknights	com.YoStarKR.Arknights
+com.devsisters.ck	com.devsisters.ck
+com.youdagames.gop3multiplayer	com.youdagames.gop3multiplayer
+com.ageofeternity.global	com.ageofeternity.global
+eu.nordeus.topeleven.android	eu.nordeus.topeleven.android
+com.gamemaker5.idlemafia	com.gamemaker5.idlemafia
+com.denachina.g23002013.android	com.denachina.g23002013.android
+com.gameloft.android.ANMP.GloftA9HM	com.gameloft.android.ANMP.GloftA9HM
+com.kiwifun.game.android.ten.crush	com.kiwifun.game.android.ten.crush
+com.mobirix.mbbi	com.mobirix.mbbi
+com.mergegames.myth	com.mergegames.myth
+com.diamondlife.slots.vegas.free	com.diamondlife.slots.vegas.free
+com.tg.ysczgm.gp	com.tg.ysczgm.gp
+com.cleverapps.mergecraft	com.cleverapps.mergecraft
+com.YoStarEN.Arknights	com.YoStarEN.Arknights
+com.wod.ag.global	com.wod.ag.global
+com.addictive.empire.clash.conquest	com.addictive.empire.clash.conquest
+com.qjzj4399kr.google	com.qjzj4399kr.google
+skydragon.ylempire	skydragon.ylempire
+com.square_enix.WOTVffbejp	com.square_enix.WOTVffbejp
+com.more.dayzsurvival.gp	com.more.dayzsurvival.gp
+com.twodesperados.violasquest	com.twodesperados.violasquest
+com.tortugateam.bravelandheroes	com.tortugateam.bravelandheroes
+com.tap4fun.ape.gplay	com.tap4fun.ape.gplay
+com.sdrlv.void	com.sdrlv.void
+com.sdrlv.void	com.sdrlv.void
+com.feelingtouch.bn	com.feelingtouch.bn
+com.dragonscapes.global	com.dragonscapes.global
+com.lilithgame.roc.gp	com.lilithgame.roc.gp
+com.sialiagames.sgzzlb.gp.tw	com.sialiagames.sgzzlb.gp.tw
+com.towardsmars.dungeoncrusher	com.towardsmars.dungeoncrusher
+tw.txwy.and.arknights	tw.txwy.and.arknights
+com.cle.dy.soulseeker6	com.cle.dy.soulseeker6
+com.emagroups.cs	com.emagroups.cs
+com.ubisoft.dance.JustDance	com.ubisoft.dance.JustDance
+com.ekkorr.cook	com.ekkorr.cook
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.google.android.gms	com.google.android.gms
+com.erepubliklabs.warandpeace	com.erepubliklabs.warandpeace
+com.landsharkgames.zenkoi2.android	com.landsharkgames.zenkoi2.android
+com.pnixgames.golfkingwt	com.pnixgames.golfkingwt
+com.asanteegames.magicrampage	com.asanteegames.magicrampage
+com.asanteegames.magicrampage	com.asanteegames.magicrampage
+com.webzen.r2m.google	com.webzen.r2m.google
+com.dreamotion.ronin	com.dreamotion.ronin
+com.heyyogame.gd	com.heyyogame.gd
+com.star.union.planetant	com.star.union.planetant
+com.glu.zbs	com.glu.zbs
+com.moonton.magicrush	com.moonton.magicrush
+com.lilithgame.hgame.gp	com.lilithgame.hgame.gp
+com.onepunchman.ggplay.tw	com.onepunchman.ggplay.tw
+com.wildspike.wormszone	com.wildspike.wormszone
+com.pid.turnipboy	com.pid.turnipboy
+com.savysoda.pixelstarships	com.savysoda.pixelstarships
+com.cookapps.bubblecoco	com.cookapps.bubblecoco
+com.wsy.google.wansuiye.kr	com.wsy.google.wansuiye.kr
+com.bandagames.mpuzzle.gp	com.bandagames.mpuzzle.gp
+com.zlongame.kr.u2	com.zlongame.kr.u2
+com.akpublish.zombie	com.akpublish.zombie
+com.gametaiwan.jjna	com.gametaiwan.jjna
+com.userjoy.sgc	com.userjoy.sgc
+mobi.blackbears.towerlands	mobi.blackbears.towerlands
+com.fgol.HungrySharkEvolution	com.fgol.HungrySharkEvolution
+com.bandainamcoent.saoifww	com.bandainamcoent.saoifww
+com.mobirix.swipebrick2	com.mobirix.swipebrick2
+com.wsy.google.hk.wansuiye	com.wsy.google.hk.wansuiye
+com.global.dzgkr.google	com.global.dzgkr.google
+com.com2us.chronicles.android.google.kr.normal	com.com2us.chronicles.android.google.kr.normal
+com.lilithgame.hgame.gp.kr	com.lilithgame.hgame.gp.kr
+com.elex.twdsaw.gp	com.elex.twdsaw.gp
+com.more.lastfortress.gp	com.more.lastfortress.gp
+com.gm99.mus	com.gm99.mus
+com.Boomware.CafePanic	com.Boomware.CafePanic
+com.dc.gok.google	com.dc.gok.google
+com.sdrlv.rt.test2	com.sdrlv.rt.test2
+com.playrix.gardenscapes	com.playrix.gardenscapes
+com.square_enix.android_googleplay.WOTVffbeww	com.square_enix.android_googleplay.WOTVffbeww
+slots.pcg.casino.games.free.android	slots.pcg.casino.games.free.android
+slots.pcg.casino.games.free.android	slots.pcg.casino.games.free.android
+com.gameloft.android.ANMP.GloftW2HM	com.gameloft.android.ANMP.GloftW2HM
+com.os.airforce	com.os.airforce
+com.quickturtle.EmployeeSurvival_en	com.quickturtle.EmployeeSurvival_en
+com.grandegames.slots.dafu.casino	com.grandegames.slots.dafu.casino
+com.mobile.legends	com.mobile.legends
+com.mobile.legends	com.mobile.legends
+com.topgamesinc.evony	com.topgamesinc.evony
+com.direlight.grimvalor	com.direlight.grimvalor
+com.AbleGames.DalToKi	com.AbleGames.DalToKi
+com.integragames.openhouse.android	com.integragames.openhouse.android
+com.zloong.eu.dr.gp	com.zloong.eu.dr.gp
+com.game.space.shooter2	com.game.space.shooter2
+com.denachina.g33002013.android	com.denachina.g33002013.android
+com.sdrlv.rt.test3	com.sdrlv.rt.test3
+com.playflock.family.hotel.story.home.mansion.puzzle.garden.decoration	com.playflock.family.hotel.story.home.mansion.puzzle.garden.decoration
+com.cleverapps.wondermerge	com.cleverapps.wondermerge
+com.nspgames.dungeonslasher	com.nspgames.dungeonslasher
+com.my.hc.rpg.kingdom.simulator	com.my.hc.rpg.kingdom.simulator
+com.dogbytegames.offtheroad	com.dogbytegames.offtheroad
+com.purplekiwii.vegaslive	com.purplekiwii.vegaslive
+com.tg.ysczgkr.gp	com.tg.ysczgkr.gp
+com.wildsky.wildcastle	com.wildsky.wildcastle
+com.com2us.chronicles.android.google.us.normal	com.com2us.chronicles.android.google.us.normal
+com.sdrlv.rt.test1	com.sdrlv.rt.test1
+com.webzen.r2mtw.google	com.webzen.r2mtw.google
+com.ngelgames.tog	com.ngelgames.tog
+com.im30.ROE.gp	com.im30.ROE.gp
+air.com.neon.games.WBT	air.com.neon.games.WBT
+com.gamebeans.tdj	com.gamebeans.tdj
+com.gm_shaber.dayr	com.gm_shaber.dayr
+com.com2us.smon.normal.freefull.google.kr.android.common	com.com2us.smon.normal.freefull.google.kr.android.common
+com.playrix.homescapes	com.playrix.homescapes
+com.test.g17_DF_BS02	com.test.g17_DF_BS02
+com.catdaddy.cat22	com.catdaddy.cat22
+com.featherweightgames.fx	com.featherweightgames.fx
+com.ace.global	com.ace.global
+com.gamefirst.free.strategy.god.simulator	com.gamefirst.free.strategy.god.simulator
+com.joycity.potc	com.joycity.potc
+com.matryoshka.cityrescueteam	com.matryoshka.cityrescueteam
+com.plarium.solitaire	com.plarium.solitaire
+com.dc.hwsj	com.dc.hwsj
+com.davestudio.lenere	com.davestudio.lenere
+com.ggds.ski.resort.empire.idle.tycoon.game	com.ggds.ski.resort.empire.idle.tycoon.game
+com.manababa.BeggarKing	com.manababa.BeggarKing
+com.williamsinteractive.jackpotparty	com.williamsinteractive.jackpotparty
+com.onepunchman.google.kr	com.onepunchman.google.kr
+com.lilithgames.rok.gpkr	com.lilithgames.rok.gpkr
+com.devsisters.gb	com.devsisters.gb
+com.volcanoforce.lost.global	com.volcanoforce.lost.global
+com.volcanoforce.lost.global	com.volcanoforce.lost.global
+com.aquiris.horizonchase	com.aquiris.horizonchase
+com.ParallelSpace.Cerberus	com.ParallelSpace.Cerberus
+com.kakaogames.gdtskr	com.kakaogames.gdtskr
+com.stgl.global	com.stgl.global
+com.bandainamcoent.saoif	com.bandainamcoent.saoif
+air.br.com.megajogos.mobile	air.br.com.megajogos.mobile
+com.gameloft.android.ANMP.GloftDOHM	com.gameloft.android.ANMP.GloftDOHM
+com.eskyfun.sgsmjzgp	com.eskyfun.sgsmjzgp
+com.allstarunion.bap	com.allstarunion.bap
+com.gm11.bingocraze	com.gm11.bingocraze
+com.ksrgland.goat	com.ksrgland.goat
+com.fireshrike.dk	com.fireshrike.dk"""
     return s.replace("\n", "\\n").replace("\t", "\\t")
 
 if __name__ == "__main__":
