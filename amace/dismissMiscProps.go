@@ -12,8 +12,16 @@ import (
 	"go.chromium.org/tast/core/testing"
 )
 
+func CheckMiscAppForKnownBehavior(ctx context.Context, k *input.KeyboardEventWriter, pkgName string) error {
+	switch pkgName {
+	case "bn.ereader":
+		closeBNobleWifi(ctx, k)
+	}
+	return nil
+}
+
 // CloseBNobleWifi will check and close WiFi popup.
-func CloseBNobleWifi(ctx context.Context, k *input.KeyboardEventWriter) error {
+func closeBNobleWifi(ctx context.Context, k *input.KeyboardEventWriter) error {
 	testing.ContextLog(ctx, "Closing Wifi w/ back key")
 	return k.TypeKeyAction(input.KEY_BACK)(ctx)
 }

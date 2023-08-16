@@ -9,21 +9,17 @@
 tast -verbose run -var=arc.amace.posturl=http://xyz.com -var=arc.amace.hostip=http://192.168.1.123  -var=arc.amace.device=root@192.168.1.456 -var=amace.runts=123 -var=amace.runid=123  -var=ui.gaiaPoolDefault=email@gmail.com:password root@192.168.1.238 arc.AMACE
 ./startAMACE.sh -d root@192.168.1.125 -d root@192.168.1.141 -a email@gmail.com:password
 '''
-import argparse
-import json
-
-import requests
-import subprocess
-import uuid
-
-
 from collections import defaultdict
 from dataclasses import dataclass
 from multiprocessing import Process
 from time import time
 from typing import Dict, List
-
-
+import argparse
+import json
+import sys
+import requests
+import subprocess
+import uuid
 
 Red = "\033[31m"
 Black = "\033[30m"
@@ -53,18 +49,35 @@ def p_purple(*args, end='\n'):
 def p_cyan(*args, end='\n'):
     print(Cyan, *args, RESET, end=end)
 
+
+# enum AppType {
+#   APP = "App",
+#   Game = "Game",
+#   PWA = "PWA",
+# }
+
+# type HistoryStep = {
+#   msg: string;
+#   url: string;
+# };
+
 @dataclass
 class RequestBody:
     """Request data for app error. Reflects amace.go and backend."""
+    appName: str
+    pkgName: str
     runID: str
     runTS: str
-    pkgName: str
-    appName: str
-    status: int
-    isGame: bool
     appTS: int
+    status: int
+    brokenStatus: int
     buildInfo: str
     deviceInfo: str
+    appType: str
+    appVersion: str
+    history: str
+    logs: str
+    loginResults: int
 
 class AMACE:
     """Runs TAST test to completion.
@@ -72,7 +85,7 @@ class AMACE:
     If the test fails early for any reason, the test will be re run.
     """
 
-    def __init__(self, device: str, BASE_URL: str, host_ip: str, run_id: str, run_ts: int, test_account: str, creds: Dict[str, Dict[str, str]], skip_amace, skip_broken, skip_login):
+    def __init__(self, device: str, BASE_URL: str, host_ip: str, secret: str, run_id: str, run_ts: int, test_account: str, creds: Dict[str, Dict[str, str]], skip_amace, skip_broken, skip_login):
         self.__test_account = test_account
         self.__device = device
         self.__current_package = ""
@@ -83,7 +96,7 @@ class AMACE:
         self.__package_retries = defaultdict(int)
         self.__packages = defaultdict(int)
         self.__package_arr = []
-        self.__api_key = None
+        self.__api_key = secret
         self.__run_id = run_id
         self.__run_ts = run_ts
         self.__creds = json.dumps(creds)
@@ -92,7 +105,6 @@ class AMACE:
         self.__skip_broken = skip_broken
         self.__skip_login = skip_login
         self.__get_apps()
-        self.__get_api_key()
 
     def __get_apps(self):
         """Get apps from file."""
@@ -101,11 +113,6 @@ class AMACE:
                 pkg = l.split("\t")[1].replace("\n", "")
                 self.__package_arr.append(pkg)
                 self.__packages[pkg] = idx
-
-    def __get_api_key(self):
-        """Get api key from file."""
-        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
-            self.__api_key = f.readline()
 
     def __get_next_app(self, pkg: str) -> str:
         """Gets next app given a package name.
@@ -127,16 +134,22 @@ class AMACE:
         info = msg.split("|~|")
         p_cyan(f"App info picked up: ", info)
         self.__current_package = info[3]
+        # The idea is to output the needed info to identify the app and report an error in the case that seomthing with the host device goes wrong.
         self.__request_body = RequestBody(
+            appName = info[4],
+            pkgName = info[3],
             runID = info[1],
             runTS = info[2],
-            pkgName = info[3],
-            appName = info[4],
-            status = info[5],
-            isGame = info[6],
             appTS = info[7],
+            status = info[5],
             buildInfo = info[8],
             deviceInfo = info[9],
+            appType=info[6],
+            brokenStatus=0,
+            appVersion="",
+            history="",
+            logs="",
+            loginResults=0,
         )
 
     def __run_command(self, command):
@@ -191,6 +204,7 @@ class AMACE:
         headers = {'Authorization': self.__api_key}
         res = requests.post(self.__BASE_URL, data=self.__request_body.__dict__, headers=headers)
         print(f"{res=}")
+        self.__log_error = False
 
     def start(self):
         """Starts the TAST test and ensures it completes."""
@@ -209,10 +223,8 @@ class AMACE:
                     self.__current_package = self.__get_next_app(self.__current_package)
             p_red(f"Tast run over with: {self.__current_package=}")
 
-
 def get_local_ip():
-    '''
-    '''
+    '''Gets host deivce local ip address.'''
     result = subprocess.run(['ifconfig'], capture_output=True, text=True)
     output = result.stdout
     s = "192.168.1."
@@ -220,7 +232,7 @@ def get_local_ip():
         idx = output.index(s)
         idx += len(s)
         return f"192.168.1.{output[idx:idx+3]}"
-    except Exception as err:
+    except Exception:
         pass
 
     s = "10.0.0."
@@ -228,7 +240,7 @@ def get_local_ip():
         idx = output.index(s)
         idx += len(s)
         return f"10.0.0.{output[idx:idx+3]}"
-    except Exception as err:
+    except Exception:
         pass
 
     s = "192.168.0."
@@ -236,11 +248,8 @@ def get_local_ip():
         idx = output.index(s)
         idx += len(s)
         return f"192.168.0.{output[idx:idx+3]}"
-    except Exception as err:
-        print("Errir: ", err)
-
-    return ""
-
+    except Exception:
+        sys.exit("Failed to get local ip!")
 
 def load_apps():
     apps = fetch_apps()
@@ -249,14 +258,17 @@ def load_apps():
 def fetch_apps():
     '''Fetch apps from backend. NextJS -> FirebaseDB'''
     headers = {"Authorization": read_secret()}
-    # res = requests.get("http://localhost:3000/api/applist", headers=headers)
-    res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/applist", headers=headers)
-    result = json.loads(res.text)
+    try:
+        # res = requests.get("http://localhost:3000/api/applist", headers=headers)
+        res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/applist", headers=headers)
+        result = json.loads(res.text)
 
-    s = result['data']['data']['apps']
-    results = s.replace("\\t", "\t").split("\\n")
-    print(f"{results=}")
-    return results
+        s = result['data']['data']['apps']
+        results = s.replace("\\t", "\t").split("\\n")
+        print(f"{results=}")
+        return results
+    except Exception as err:
+        sys.exit(f"Failed to get list of apps to check: {err}")
 
 def write_apps(apps: List[str]):
     '''Overwrite /home/USER/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv
@@ -272,32 +284,34 @@ def write_apps(apps: List[str]):
 
 def read_secret():
     """Get api key from file."""
-    secret = ""
-    with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
-        secret = f.readline()
-    return secret
+    try:
+        secret = ""
+        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
+            secret = f.read()
+            if not secret:
+                sys.exit(f"Secret file empty: need to add secret to AMACE_secret.txt in data dir.")
+        return secret
+    except FileNotFoundError:
+        sys.exit(f"Secret file not found: need to add AMACE_secret.txt to data dir.")
 
-
-def fetch_app_creds():
+def fetch_app_creds(secret):
     '''Fetch apps creds from backend. NextJS -> FirebaseDB'''
-    headers = {"Authorization": read_secret()}
-    # res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
-    res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
-    result = json.loads(res.text)
+    try:
+        headers = {"Authorization": secret}
+        # res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
+        res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
+        creds = json.loads(res.text)['data']['data']
+        return creds
+    except Exception as err:
+        sys.exit(f"Failed to get app creds: {str(err)}")
 
-    creds = result['data']['data']
-
-    print(f"{creds=}")
-    return creds
-
-def task(device: str, url, host_ip, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login):
-    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds, skip_amace=skip_amace, skip_broken=skip_broken, skip_login=skip_login)
+def task(device: str, url, host_ip, secret, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login):
+    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, secret=secret, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds, skip_amace=skip_amace, skip_broken=skip_broken, skip_login=skip_login)
     amace.start()
-
 
 class MultiprocessTaskRunner:
     ''' Starts running AMACE() on each device/ ip. '''
-    def __init__(self, url: str, host_ip: str,  ips: List[str], test_account: str, creds: Dict[str, Dict[str, str]],  skip_amace, skip_broken, skip_login):
+    def __init__(self, url: str, host_ip: str, secret: str,  ips: List[str], test_account: str, creds: Dict[str, Dict[str, str]],  skip_amace, skip_broken, skip_login):
 
         self.__test_account = test_account
         self.__run_ts = int(time()*1000)
@@ -306,6 +320,7 @@ class MultiprocessTaskRunner:
         self.__host_ip = host_ip
         self.__ips = ips
         self.__creds = creds
+        self.__secret = secret
         self.__processes = []
         self.__skip_amace = skip_amace
         self.__skip_broken = skip_broken
@@ -313,7 +328,7 @@ class MultiprocessTaskRunner:
 
     def __start_process(self, ip):
         try:
-            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__run_id, self.__run_ts, self.__test_account, self.__creds, self.__skip_amace, self.__skip_broken, self.__skip_login))
+            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__secret, self.__run_id, self.__run_ts, self.__test_account, self.__creds, self.__skip_amace, self.__skip_broken, self.__skip_login))
             process.start()
             self.__processes.append(process)
         except Exception as error:
@@ -327,11 +342,10 @@ class MultiprocessTaskRunner:
         for p in self.__processes:
             p.join()
 
-
-
 if __name__ == "__main__":
     load_apps()
-    creds = fetch_app_creds()
+    secret = read_secret()
+    creds = fetch_app_creds(secret)
     parser = argparse.ArgumentParser(description="App validation.")
     parser.add_argument("-d", "--device",
                         help="Device to run on DUT.",
@@ -358,18 +372,16 @@ if __name__ == "__main__":
 
     ags = parser.parse_args()
     url = ags.url
-    host_ip = get_local_ip()
     test_account = ags.account
     skip_amace = ags.samace
     skip_broken = ags.sbroken
     skip_login = ags.slogin
-    print(f"CLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}")
+    host_ip = get_local_ip()
+    print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
     # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
 
-    # Read list of ips from CLI
-    # Loops and create a new process for each
     ips = [d for d in ags.device.split(" ") if d]
     print("Starting on devices: ", ips)
 
-    tr = MultiprocessTaskRunner(url, host_ip, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login)
+    tr = MultiprocessTaskRunner(url, host_ip, secret=secret, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login)
     tr.run()

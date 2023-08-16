@@ -26,8 +26,10 @@ cp $amace_dir/facebookLogin.go          ./amace/facebookLogin.go
 cp $amace_dir/installAppUtils.go        ./amace/installAppUtils.go
 cp $amace_dir/loadFiles.go              ./amace/loadFiles.go
 cp $amace_dir/loginUtils.go             ./amace/loginUtils.go
+cp $amace_dir/requestUtils.go           ./amace/requestUtils.go
 cp $amace_dir/types.go                  ./amace/types.go
 cp $amace_dir/utils.go                  ./amace/utils.go
+cp $amace_dir/windowUtils.go            ./amace/windowUtils.go
 cp $amace_dir/yoloDetect.go             ./amace/yoloDetect.go
 
 # Main Test

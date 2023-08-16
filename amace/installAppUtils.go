@@ -40,12 +40,33 @@ type Options struct {
 type operation string
 
 // InstallARCApp uses the Play Store to install or update an application.
-func InstallARCApp(ctx context.Context, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) error {
+func InstallARCApp(ctx context.Context, a *arc.ARC, d *ui.Device, appPack AppPackage, accountPassword string) (AppStatus, error) {
+
 	if err := installApp(ctx, a, d, appPack.Pname, &Options{TryLimit: 6, InstallationTimeout: 90 * time.Second}, accountPassword); err != nil {
-		// s.Log("Failed to install app: ", appPack.Pname)
-		return err
+		testing.ContextLogf(ctx, "Failed to install app: %s - err: %s", appPack.Pname, err.Error())
+
+		if err.Error() == "App purchased" {
+			return PURCHASED, err
+		} else if err.Error() == "Need to purchase app" {
+			return PRICE, err
+		} else if err.Error() == "device is not compatible with app" {
+			return DEVICENOTCOMPAT, err
+		} else if err.Error() == "chromebook not compat" {
+			return CHROMEBOOKNOTCOMPAT, err
+		} else if err.Error() == "app not compatible with this device" {
+			return OLDVERSION, err
+		} else if err.Error() == "too many attempts" {
+			return INSTALLFAIL, err
+		} else if err.Error() == "app not availble in your country" {
+			return COUNTRYNA, err
+		} else if err.Error() == "too many attempst: app failed to install" {
+			return TOOMANYATTEMPTS, err
+		} else {
+			return Fail, err
+		}
+
 	}
-	return nil
+	return SKIPPEDAMACE, nil
 }
 
 func installApp(ctx context.Context, a *arc.ARC, d *ui.Device, pkgName string, opt *Options, accountPassword string) error {
