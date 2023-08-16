@@ -35,15 +35,17 @@ cp ./amace/facebookLogin.go      $amace_dir/facebookLogin.go
 cp ./amace/installAppUtils.go    $amace_dir/installAppUtils.go
 cp ./amace/loadFiles.go          $amace_dir/loadFiles.go
 cp ./amace/loginUtils.go         $amace_dir/loginUtils.go
+cp ./amace/requestUtils.go       $amace_dir/requestUtils.go
 cp ./amace/types.go              $amace_dir/types.go
 cp ./amace/utils.go              $amace_dir/utils.go
+cp ./amace/windowUtils.go        $amace_dir/windowUtils.go
 cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
 
 
 
 
 # Data Files
-cp ./AMACE_app_list.tsv          $directory/data/AMACE_app_list.tsv
+# cp ./AMACE_app_list.tsv          $directory/data/AMACE_app_list.tsv
 # cp ./AMACE_secret.txt            $amace_dir/data/AMACE_secret.txt
 
 

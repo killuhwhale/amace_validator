@@ -22,7 +22,7 @@ import (
 func FacebookLogin(ctx context.Context, a *arc.ARC, d *ui.Device, tconn *chrome.TestConn, cr *chrome.Chrome, keyboard *input.KeyboardEventWriter, ah *AppHistory, hostIP, runID, deviceInfo string, appCreds AppCreds, initState ash.WindowStateType) bool {
 
 	appPack := AppPackage{Aname: "Fb", Pname: FacebookPackageName}
-	if err := InstallARCApp(ctx, a, d, appPack, "fbpass"); err != nil {
+	if _, err := InstallARCApp(ctx, a, d, appPack, "fbpass"); err != nil {
 		testing.ContextLog(ctx, err)
 		return false
 	}

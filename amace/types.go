@@ -40,9 +40,6 @@ const (
 	FailedAmaceCheck = 103
 )
 
-// AppStatus indicates the final status of checking the app for AMAC-e
-type AppStatus int
-
 // AppType represents the type of app.
 type AppType string
 
@@ -54,6 +51,9 @@ const (
 	// PWAAPP is a PWA app
 	PWAAPP AppType = "PWA"
 )
+
+// AppStatus indicates the final status of checking the app for AMAC-e
+type AppStatus int
 
 // When updating AppStatus, frontend needs to be updated as well
 // 1. pages/amace/processStats/reasons and add tally & graph
@@ -99,8 +99,49 @@ const (
 	SKIPPEDAMACE = 255 // 1023
 )
 
-func (ap *AppStatus) String() string {
-	return ap.String()
+func (as AppStatus) String() string {
+	switch as {
+	case Fail:
+		return "Fail"
+	case LaunchFail:
+		return "Launchfail"
+	case Crashed:
+		return "Crashed"
+	case PRICE:
+		return "Price"
+	case PURCHASED:
+		return "Purchased"
+	case OLDVERSION:
+		return "Oldversion"
+	case INSTALLFAIL:
+		return "Installfail"
+	case TOOMANYATTEMPTS:
+		return "Toomanyattempts"
+	case DEVICENOTCOMPAT:
+		return "Devicenotcompat"
+	case CHROMEBOOKNOTCOMPAT:
+		return "Chromebooknotcompat"
+	case COUNTRYNA:
+		return "Countryna"
+	case O4C:
+		return "O4c"
+	case O4CFullScreenOnly:
+		return "O4cfullscreenonly"
+	case IsFSToAmacE:
+		return "Isfstoamace"
+	case IsLockedPAmacE:
+		return "Islockedpamace"
+	case IsLockedTAmacE:
+		return "Islockedtamace"
+	case IsAmacE:
+		return "Isamace"
+	case PWA:
+		return "Pwa"
+	case SKIPPEDAMACE:
+		return "Skippedamace"
+	default:
+		return fmt.Sprintf("Unknown AppStatus: %d", int(as))
+	}
 }
 
 // AppResult stores result of checking app
