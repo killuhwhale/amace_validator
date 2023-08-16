@@ -63,6 +63,11 @@ var postURL = testing.RegisterVarString(
 	"https://appval-387223.wl.r.appspot.com/api/amaceResult",
 	"Url for api endpoint.",
 )
+var appResultURL = testing.RegisterVarString(
+	"arc.amace.latestresulturl",
+	"https://appval-387223.wl.r.appspot.com/api/latestAppResult",
+	"Url for api endpoint",
+)
 var runTS = testing.RegisterVarString(
 	"arc.amace.runts",
 	"na",
@@ -130,6 +135,11 @@ type requestBody struct {
 	AppHistory   *amace.AppHistory     `json:"history"`
 	Logs         string                `json:"logs"`
 	LoginResults int8                  `json:"loginResults"`
+}
+
+type appRequestBody struct {
+	DeviceInfo	string	`json:"deviceInfo"`
+	PkgName		string	`json:"pkgName"`
 }
 
 var centerButtonClassName = "FrameCenterButton"
@@ -229,9 +239,11 @@ func AMACE(ctx context.Context, s *testing.State) {
 	var status amace.AppStatus
 	var finalLogs string
 	var tmpAppType amace.AppType
-	ar := amace.AppResult{}
+	//ar := amace.AppResult{}
 
-	var fbPreLoggedIn = false
+	s.Log("###############################")
+
+	/*var fbPreLoggedIn = false
 	if skipLoggIn.Value() != "t" {
 		fbPreLoggedIn = amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
 		testing.ContextLog(ctx, "Pre login facebook: ", fbPreLoggedIn)
@@ -243,17 +255,31 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("Error posting: ", err)
 		}
 		s.Log("Post res: ", res)
-	}
+	}*/
+
+	s.Log("###############################")
 
 	for _, appPack := range testApps {
 		// Reset Final logs
 		finalLogs = ""
-		// Reset History
+		// Reset HistoryLoadAppList
 		appHistory = amace.AppHistory{}
 		// Reset Logs
 		crash = amace.ErrResult{}
 		// New App TS
 		appTS := time.Now().UnixMilli()
+
+		lastAppVersion, err := getLatestAppResult(s, deviceInfo, appPack.Pname, secret)
+		s.Log("Latest app results ", lastAppVersion)
+		data := requestBody{}
+		e := json.Unmarshal([]byte(lastAppVersion), &data)
+		if e != nil {
+			fmt.Printf("Failed to read the response body: %v\n", err)
+			continue
+		}
+		s.Log("Data ", data)
+		//s.Log("Latest device build ", lastAppVersion.buildInfo)
+		//s.Log("Latest app version ", lastAppVersion.appVersion)
 
 		// Signals a new app run to python parent manage-program
 		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
@@ -703,6 +729,51 @@ func postData(appResult amace.AppResult, s *testing.State, buildInfo, secret, de
 	// Create a new POST request with the JSON data
 	s.Log("Posting to: ", postURL.Value())
 	request, err := http.NewRequest("POST", postURL.Value(), bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Printf("Failed to create the request: %v\n", err)
+		return "", err
+	}
+
+	// Set the Content-Type header
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", secret)
+
+	// Send the POST request
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		fmt.Printf("Failed to make the request: %v\n", err)
+		return "", err
+	}
+	defer response.Body.Close()
+
+	// Read the response body
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Printf("Failed to read the response body: %v\n", err)
+		return "", err
+	}
+	return string(body), nil
+}
+
+func getLatestAppResult(s *testing.State, deviceInfo string, pkgName string, secret string) (string, error) {
+	s.Log("Getting latest result for pkg: ", pkgName)
+	requestBody := appRequestBody{
+		deviceInfo,
+		pkgName,
+	}
+
+	// Convert the data to JSON
+	jsonData, err := json.Marshal(requestBody)
+	s.Log("JSON data: ", requestBody, string(jsonData))
+	if err != nil {
+		fmt.Printf("Failed to marshal request body: %v\n", err)
+		return "", err
+	}
+
+	// Create a new POST request with the JSON data
+	s.Log("Posting to: ", postURL.Value())
+	request, err := http.NewRequest("POST", appResultURL.Value(), bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Printf("Failed to create the request: %v\n", err)
 		return "", err
