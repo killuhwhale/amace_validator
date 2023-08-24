@@ -34,6 +34,7 @@ env = environ.Env(
     EMAIL_SENDER=(str, ""),
     EMAIL_PASSWORD=(str, ""),
     BUCKET_NAME=(str, ""),
+    GOOGLE_APPLICATION_CREDENTIALS=(str, ""),
 )
 
 environ.Env.read_env()
