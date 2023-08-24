@@ -16,10 +16,14 @@ from time import time
 from typing import Dict, List
 import argparse
 import json
+import os
 import sys
 import requests
 import subprocess
 import uuid
+
+USER = os.environ.get("USER")
+chroot_data_path = f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data"
 
 Red = "\033[31m"
 Black = "\033[30m"
@@ -79,6 +83,94 @@ class RequestBody:
     logs: str
     loginResults: int
 
+
+def get_local_ip():
+    '''Gets host deivce local ip address.'''
+    result = subprocess.run(['ifconfig'], capture_output=True, text=True)
+    output = result.stdout
+    s = "192.168.1."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"192.168.1.{output[idx:idx+3]}"
+    except Exception:
+        pass
+
+    s = "10.0.0."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"10.0.0.{output[idx:idx+3]}"
+    except Exception:
+        pass
+
+    s = "192.168.0."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"192.168.0.{output[idx:idx+3]}"
+    except Exception:
+        sys.exit("Failed to get local ip!")
+
+def load_apps(secret):
+    apps = fetch_apps(secret)
+    write_apps(apps)
+
+def fetch_apps(secret):
+    '''Fetch apps from backend. NextJS -> FirebaseDB'''
+    headers = {"Authorization": secret}
+    try:
+        # res = requests.get("http://localhost:3000/api/applist", headers=headers)
+        res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
+        result = json.loads(res.text)
+
+        s = result['data']['data']['apps']
+        results = s.replace("\\t", "\t").split("\\n")
+        print(f"{results=}")
+        return results
+    except Exception as err:
+        sys.exit(f"Failed to get list of apps to check: {err}")
+
+def write_apps(apps: List[str]):
+    '''Overwrite /home/USER/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv
+        platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py
+    '''
+
+    filepath = f"{chroot_data_path}/AMACE_app_list.tsv"
+    with open(filepath, "w", encoding="utf-8") as f:
+        for idx, line in enumerate(apps):
+            if idx == len(apps) - 1:
+                f.write(f"{line}")  # dont not write empty line on last entry
+            else:
+                f.write(f"{line}\n")
+
+def read_secret(secret_path):
+    """Get api key from file."""
+    try:
+        secret = ""
+        with open(secret_path, 'r', encoding="utf-8") as f:
+            secret = f.read()
+            if not secret:
+                sys.exit(f"Secret file empty: need to add secret to AMACE_secret.txt in data dir.")
+        return secret
+    except FileNotFoundError:
+        sys.exit(f"Secret file not found: need to add AMACE_secret.txt to data dir.")
+
+def fetch_app_creds(secret):
+    '''Fetch apps creds from backend. NextJS -> FirebaseDB'''
+    try:
+        headers = {"Authorization": secret}
+        # res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
+        res = requests.get(f"https://appvaldashboard.com/api/appCreds", headers=headers)
+        creds = json.loads(res.text)['data']['data']
+        return creds
+    except Exception as err:
+        sys.exit(f"Failed to get app creds: {str(err)}")
+
+def task(device: str, url, host_ip, secret, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login):
+    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, secret=secret, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds, skip_amace=skip_amace, skip_broken=skip_broken, skip_login=skip_login)
+    amace.start()
+
 class AMACE:
     """Runs TAST test to completion.
 
@@ -108,7 +200,8 @@ class AMACE:
 
     def __get_apps(self):
         """Get apps from file."""
-        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv", 'r', encoding="utf-8") as f:
+        filepath = f"{chroot_data_path}/AMACE_app_list.tsv"
+        with open(filepath, 'r', encoding="utf-8") as f:
             for idx, l in enumerate(f.readlines()):
                 pkg = l.split("\t")[1].replace("\n", "")
                 self.__package_arr.append(pkg)
@@ -223,99 +316,6 @@ class AMACE:
                     self.__current_package = self.__get_next_app(self.__current_package)
             p_red(f"Tast run over with: {self.__current_package=}")
 
-def get_local_ip():
-    '''Gets host deivce local ip address.'''
-    result = subprocess.run(['ifconfig'], capture_output=True, text=True)
-    output = result.stdout
-    s = "192.168.1."
-    try:
-        idx = output.index(s)
-        idx += len(s)
-        return f"192.168.1.{output[idx:idx+3]}"
-    except Exception:
-        pass
-
-    s = "10.0.0."
-    try:
-        idx = output.index(s)
-        idx += len(s)
-        return f"10.0.0.{output[idx:idx+3]}"
-    except Exception:
-        pass
-
-    s = "192.168.0."
-    try:
-        idx = output.index(s)
-        idx += len(s)
-        return f"192.168.0.{output[idx:idx+3]}"
-    except Exception:
-        pass
-
-    s = "100.91.154."
-    try:
-        idx = output.index(s)
-        idx += len(s)
-        return f"100.91.154.{output[idx:idx+3]}"
-    except Exception:
-        sys.exit("Failed to get local ip!")
-
-def load_apps():
-    apps = fetch_apps()
-    write_apps(apps)
-
-def fetch_apps():
-    '''Fetch apps from backend. NextJS -> FirebaseDB'''
-    headers = {"Authorization": read_secret()}
-    try:
-        # res = requests.get("http://localhost:3000/api/applist", headers=headers)
-        res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/applist", headers=headers)
-        result = json.loads(res.text)
-
-        s = result['data']['data']['apps']
-        results = s.replace("\\t", "\t").split("\\n")
-        print(f"{results=}")
-        return results
-    except Exception as err:
-        sys.exit(f"Failed to get list of apps to check: {err}")
-
-def write_apps(apps: List[str]):
-    '''Overwrite /home/USER/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv
-        platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py
-    '''
-    filepath = f"../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_app_list.tsv"
-    with open(filepath, "w", encoding="utf-8") as f:
-        for idx, line in enumerate(apps):
-            if idx == len(apps) - 1:
-                f.write(f"{line}")  # dont not write empty line on last entry
-            else:
-                f.write(f"{line}\n")
-
-def read_secret():
-    """Get api key from file."""
-    try:
-        secret = ""
-        with open("../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt", 'r', encoding="utf-8") as f:
-            secret = f.read()
-            if not secret:
-                sys.exit(f"Secret file empty: need to add secret to AMACE_secret.txt in data dir.")
-        return secret
-    except FileNotFoundError:
-        sys.exit(f"Secret file not found: need to add AMACE_secret.txt to data dir.")
-
-def fetch_app_creds(secret):
-    '''Fetch apps creds from backend. NextJS -> FirebaseDB'''
-    try:
-        headers = {"Authorization": secret}
-        # res = requests.get("http://localhost:3000/api/appCreds", headers=headers)
-        res = requests.get(f"https://appval-387223.wl.r.appspot.com/api/appCreds", headers=headers)
-        creds = json.loads(res.text)['data']['data']
-        return creds
-    except Exception as err:
-        sys.exit(f"Failed to get app creds: {str(err)}")
-
-def task(device: str, url, host_ip, secret, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login):
-    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, secret=secret, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds, skip_amace=skip_amace, skip_broken=skip_broken, skip_login=skip_login)
-    amace.start()
 
 class MultiprocessTaskRunner:
     ''' Starts running AMACE() on each device/ ip. '''
@@ -351,9 +351,8 @@ class MultiprocessTaskRunner:
             p.join()
 
 if __name__ == "__main__":
-    load_apps()
-    secret = read_secret()
-    creds = fetch_app_creds(secret)
+
+
     parser = argparse.ArgumentParser(description="App validation.")
     parser.add_argument("-d", "--device",
                         help="Device to run on DUT.",
@@ -361,7 +360,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-u", "--url",
                         help="Base url to post data.",
-                        default="https://appval-387223.wl.r.appspot.com/api/amaceResult", type=str)
+                        default="https://appvaldashboard.com/api/amaceResult", type=str)
 
     parser.add_argument("-a", "--account",
                         help="Test account for DUT.",
@@ -376,6 +375,9 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--slogin",
                         help="Skip login.",
                         default="f", type=str)
+    parser.add_argument("-p", "--spath",
+                        help="Path of secret.txt.",
+                        default=f"{chroot_data_path}/AMACE_secret.txt", type=str)
 
 
     ags = parser.parse_args()
@@ -384,12 +386,18 @@ if __name__ == "__main__":
     skip_amace = ags.samace
     skip_broken = ags.sbroken
     skip_login = ags.slogin
+    secret_path=ags.spath
+
     host_ip = get_local_ip()
     print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
     # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
 
     ips = [d for d in ags.device.split(" ") if d]
-    print("Starting on devices: ", ips)
+    secret = read_secret(secret_path)
+    load_apps(secret)
+    creds = fetch_app_creds(secret)
 
+
+    print("Starting on devices: ", ips)
     tr = MultiprocessTaskRunner(url, host_ip, secret=secret, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login)
     tr.run()

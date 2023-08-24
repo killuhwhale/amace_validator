@@ -8,6 +8,7 @@
 # Mkdir if DNE $CHROMEOS_SRC/src/platform/tast-tests/src/chromiumos/tast/local/bundles/cros/arc/amace/
 # # ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
 # CHROMEOS_SRC="/home/$USER/chromiumos"
+triggerDirectory="${CHROMEOS_SRC}/src/scripts/wssTriggerEnv/wssTrigger"
 directory="${CHROMEOS_SRC}/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc"
 amace_dir="$directory/amace"
 if [ ! -d "$amace_dir" ]; then
@@ -52,4 +53,7 @@ cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
 # Main Test
 cp ./amace.go $directory/amace.go
 cp ./amace.py $directory/amace.py
+mkdir -p $triggerDirectory
+cp ./wssClient.py $triggerDirectory/wssClient.py
+cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
 
