@@ -15,16 +15,14 @@ process_event = threading.Event()
 
 ip_address = "192.168.1.125"
 account = "tastarcplusplusappcompat14@gmail.com:1Z5-LT4Q1337 "
-
+USER = os.environ.get("USER")
 cmd = [
         "python3",
-        "/home/killuh/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
+        f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
         "-d", ip_address,
         "-a", account,
-        "-p", "/home/killuh/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
+        "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
         "-l", "t",
-
-
 ]
 # cmd =["sleep", "30"]
 
@@ -149,7 +147,3 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(listen_to_ws())
     loop.run_forever()
-
-
-
-
