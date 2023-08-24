@@ -31,6 +31,11 @@ type requestBody struct {
 	LoginResults int8            `json:"loginResults"`
 }
 
+type appRequestBody struct {
+	DeviceInfo	string	`json:"deviceInfo"`
+	PkgName		string	`json:"pkgName"`
+}
+
 func PostData(appResult AppResult, s *testing.State, postURL, buildInfo, secret, deviceInfo string) (string, error) {
 	s.Log("🚀 Pushing result for run id: ", appResult)
 	// Create the data to send in the request
@@ -88,3 +93,52 @@ func PostData(appResult AppResult, s *testing.State, postURL, buildInfo, secret,
 	}
 	return string(body), nil
 }
+
+func GetLatestAppResult(s *testing.State, deviceInfo string, pkgName string, secret string, appResultURL string) (string, error) {
+	s.Log("Getting latest result for pkg: ", pkgName)
+	curRequestBody := appRequestBody{
+		deviceInfo,
+		pkgName,
+	}
+
+	// Convert the data to JSON
+	jsonData, err := json.Marshal(curRequestBody)
+	s.Log("JSON data: ", curRequestBody, string(jsonData))
+	if err != nil {
+		fmt.Printf("Failed to marshal request body: %v\n", err)
+		return "", err
+	}
+
+	// Create a new POST request with the JSON data
+	s.Log("Posting to: ", appResultURL)
+	request, err := http.NewRequest("POST", appResultURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Printf("Failed to create the request: %v\n", err)
+		return "", err
+	}
+
+	// Set the Content-Type header
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", secret)
+
+	// Send the POST request
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		fmt.Printf("Failed to make the request: %v\n", err)
+		return "", err
+	}
+	s.Log("Response body ", response.Body)
+	defer response.Body.Close()
+
+	// Read the response body
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Printf("Failed to read the response body: %v\n", err)
+		return "", err
+	}
+
+	return string(body), nil
+}
+
+

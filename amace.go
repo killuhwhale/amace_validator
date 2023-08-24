@@ -230,17 +230,29 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// New App TS
 		appTS := time.Now().UnixMilli()
 
-		lastAppVersion, err := getLatestAppResult(s, deviceInfo, appPack.Pname, secret)
-		s.Log("Latest app results ", lastAppVersion)
-		data := requestBody{}
-		e := json.Unmarshal([]byte(lastAppVersion), &data)
+		lastAppResults, err := amace.GetLatestAppResult(s, deviceInfo, appPack.Pname, secret, appResultURL.Value())
+		s.Log("Latest app results ", lastAppResults)
+		var data interface{}
+		e := json.Unmarshal([]byte(lastAppResults), &data)
 		if e != nil {
 			fmt.Printf("Failed to read the response body: %v\n", err)
 			continue
 		}
-		s.Log("Data ", data)
-		//s.Log("Latest device build ", lastAppVersion.buildInfo)
-		//s.Log("Latest app version ", lastAppVersion.appVersion)
+		appVersion := ""
+		buildInfo := ""
+		if data.(map[string]interface{})["data"].(map[string]interface{})["data"] != nil {
+			values := data.(map[string]interface{})["data"].(map[string]interface{})["data"].(map[string]interface{})
+			appVersion = values["appVersion"].(string)
+			buildInfo = values["buildInfo"].(string)
+			if appVersion != "" {
+				appVersion = strings.Split(appVersion, " ")[1]
+			}
+			if buildInfo != "" {
+				buildInfo = strings.Split(buildInfo, " ")[0]
+			}
+		}
+		s.Log(appVersion)
+		s.Log(buildInfo)
 
 		// Signals a new app run to python parent manage-program
 		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)

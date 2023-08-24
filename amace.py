@@ -249,6 +249,14 @@ def get_local_ip():
         idx += len(s)
         return f"192.168.0.{output[idx:idx+3]}"
     except Exception:
+        pass
+
+    s = "100.91.154."
+    try:
+        idx = output.index(s)
+        idx += len(s)
+        return f"100.91.154.{output[idx:idx+3]}"
+    except Exception:
         sys.exit("Failed to get local ip!")
 
 def load_apps():
