@@ -9,18 +9,19 @@
 tast -verbose run -var=arc.amace.posturl=http://xyz.com -var=arc.amace.hostip=http://192.168.1.123  -var=arc.amace.device=root@192.168.1.456 -var=amace.runts=123 -var=amace.runid=123  -var=ui.gaiaPoolDefault=email@gmail.com:password root@192.168.1.238 arc.AMACE
 ./startAMACE.sh -d root@192.168.1.125 -d root@192.168.1.141 -a email@gmail.com:password
 '''
+import argparse
+import json
+import os
+import subprocess
+import sys
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from multiprocessing import Process
 from time import time
 from typing import Dict, List
-import argparse
-import json
-import os
-import sys
+
 import requests
-import subprocess
-import uuid
 
 USER = os.environ.get("USER")
 chroot_data_path = f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data"
@@ -112,34 +113,32 @@ def get_local_ip():
     except Exception:
         sys.exit("Failed to get local ip!")
 
-def get_packages():
-    try:
-        dir = "/home/appval002/chromiumos/src/platform/tast-tests/cros/local/bundles/cros/arc/data/apks"
-        files = []
-        for file in os.listdir(dir):
-            files.append(file.split("-")[0])
-        print(files)
-        return files
-    except Exception as err:
-        sys.exit(f"Failed to get list of packages from apks to check: {err}")
-
-def load_apps(secret):
-    apps = fetch_apps(secret)
+def load_apps(secret, dsrcpath, dsrctype):
+    apps,  driveURL = fetch_apps(secret, dsrcpath,  dsrctype)
     write_apps(apps)
+    return driveURL
 
-def fetch_apps(secret):
+def fetch_apps(secret, dsrcpath, dsrctype):
     '''Fetch apps from backend. NextJS -> FirebaseDB'''
     print("Secret ", secret)
     headers = {"Authorization": secret}
     try:
-        # res = requests.get("http://localhost:3000/api/applist", headers=headers)
-        res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
+        res = requests.get(f"http://localhost:3000/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
+        # res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
+        # res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
         result = json.loads(res.text)
+        print("Reults getch apps: ", result)
 
-        s = result['data']['data']['apps']
+        s = result['data']['data']
+        driveURL = ""
+        try:
+            driveURL = result['data']['driveURL']
+        except Exception as err:
+            print("No drive url returned!")
+
         results = s.replace("\\t", "\t").split("\\n")
-        print(f"{results=}")
-        return results
+        print(f"{driveURL=} -- {results=}")
+        return results, driveURL
     except Exception as err:
         sys.exit(f"Failed to get list of apps to check: {err}")
 
@@ -179,8 +178,23 @@ def fetch_app_creds(secret):
     except Exception as err:
         sys.exit(f"Failed to get app creds: {str(err)}")
 
-def task(device: str, url, host_ip, secret, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login):
-    amace = AMACE(device=device.strip(), BASE_URL=url, host_ip=host_ip, secret=secret, run_id=run_id, run_ts=run_ts, test_account=test_account, creds=creds, skip_amace=skip_amace, skip_broken=skip_broken, skip_login=skip_login)
+def task(device: str, url, host_ip, secret, run_id, run_ts, test_account, creds, skip_amace, skip_broken, skip_login, dsrcpath, dsrctype, driveURL):
+    amace = AMACE(
+        device=device.strip(),
+        BASE_URL=url,
+        host_ip=host_ip,
+        secret=secret,
+        run_id=run_id,
+        run_ts=run_ts,
+        test_account=test_account,
+        creds=creds,
+        skip_amace=skip_amace,
+        skip_broken=skip_broken,
+        skip_login=skip_login,
+        dsrcpath=dsrcpath,
+        dsrctype=dsrctype,
+        driveURL=driveURL,
+        )
     amace.start()
 
 class AMACE:
@@ -189,7 +203,7 @@ class AMACE:
     If the test fails early for any reason, the test will be re run.
     """
 
-    def __init__(self, device: str, BASE_URL: str, host_ip: str, secret: str, run_id: str, run_ts: int, test_account: str, creds: Dict[str, Dict[str, str]], skip_amace, skip_broken, skip_login):
+    def __init__(self, device: str, BASE_URL: str, host_ip: str, secret: str, run_id: str, run_ts: int, test_account: str, creds: Dict[str, Dict[str, str]], skip_amace, skip_broken, skip_login, dsrcpath, dsrctype, driveURL):
         self.__test_account = test_account
         self.__device = device
         self.__current_package = ""
@@ -208,6 +222,9 @@ class AMACE:
         self.__skip_amace = skip_amace
         self.__skip_broken = skip_broken
         self.__skip_login = skip_login
+        self.__dsrcpath = dsrcpath
+        self.__dsrctype = dsrctype
+        self.__driveURL = driveURL
         self.__get_apps()
 
     def __get_apps(self):
@@ -283,12 +300,12 @@ class AMACE:
 
     def __run_tast(self):
         """Command for the TAST test with required params."""
-        self.__skip_amace
-        self.__skip_broken
-        self.__skip_login
         cmd = (
             "tast", "-verbose", "run",
                 f"-var=arc.amace.creds={self.__creds}",
+                f"-var=arc.amace.dsrcpath={self.__dsrcpath}",
+                f"-var=arc.amace.dsrctype={self.__dsrctype}",
+                f"-var=arc.amace.driveurl={self.__driveURL}",
                 f"-var=arc.amace.skipamace={self.__skip_amace}",
                 f"-var=arc.amace.skipbrokencheck={self.__skip_broken}",
                 f"-var=arc.amace.skiploggin={self.__skip_login}",
@@ -332,7 +349,7 @@ class AMACE:
 
 class MultiprocessTaskRunner:
     ''' Starts running AMACE() on each device/ ip. '''
-    def __init__(self, url: str, host_ip: str, secret: str,  ips: List[str], test_account: str, creds: Dict[str, Dict[str, str]],  skip_amace, skip_broken, skip_login):
+    def __init__(self, url: str, host_ip: str, secret: str,  ips: List[str], test_account: str, creds: Dict[str, Dict[str, str]],  skip_amace, skip_broken, skip_login, dsrcpath, dsrctype, driveURL):
 
         self.__test_account = test_account
         self.__run_ts = int(time()*1000)
@@ -346,10 +363,13 @@ class MultiprocessTaskRunner:
         self.__skip_amace = skip_amace
         self.__skip_broken = skip_broken
         self.__skip_login = skip_login
+        self.__dsrcpath = dsrcpath
+        self.__dsrctype = dsrctype
+        self.__driveURL = driveURL
 
     def __start_process(self, ip):
         try:
-            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__secret, self.__run_id, self.__run_ts, self.__test_account, self.__creds, self.__skip_amace, self.__skip_broken, self.__skip_login))
+            process = Process(target=task, args=(ip, self.__url, self.__host_ip, self.__secret, self.__run_id, self.__run_ts, self.__test_account, self.__creds, self.__skip_amace, self.__skip_broken, self.__skip_login, self.__dsrcpath, self.__dsrctype, self.__driveURL))
             process.start()
             self.__processes.append(process)
         except Exception as error:
@@ -391,9 +411,12 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--spath",
                         help="Path of secret.txt.",
                         default=f"{chroot_data_path}/AMACE_secret.txt", type=str)
-    parser.add_argument("-s", "--source",
-                        help="Source to install apps from",
-                        default="", type=str)
+    parser.add_argument("-s", "--dsrcpath",
+                        help="Firebase document path for data/app list to test.",
+                        default=f"AppLists/live", type=str)
+    parser.add_argument("-t", "--dsrctype",
+                        help="Data/ app list type: Playstore or Gdrive.",
+                        default=f"playstore", type=str)
 
 
     ags = parser.parse_args()
@@ -403,6 +426,8 @@ if __name__ == "__main__":
     skip_broken = ags.sbroken
     skip_login = ags.slogin
     secret_path=ags.spath
+    dsrcpath=ags.dsrcpath
+    dsrctype=ags.dsrctype
 
     host_ip = get_local_ip()
     print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
@@ -410,14 +435,11 @@ if __name__ == "__main__":
 
     ips = [d for d in ags.device.split(" ") if d]
     secret = read_secret(secret_path)
-    if ags.source == "apks":
-        apps = get_packages()
-        write_apps(apps)
-    else:
-        load_apps(secret)
+    # TODO, PIPE THIS DOWN TO AMACE.GO
+    driveURL = load_apps(secret, dsrcpath,  dsrctype)
     creds = fetch_app_creds(secret)
 
 
     print("Starting on devices: ", ips)
-    tr = MultiprocessTaskRunner(url, host_ip, secret=secret, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login)
+    tr = MultiprocessTaskRunner(url, host_ip, secret=secret, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login, dsrcpath=dsrcpath, dsrctype=dsrctype, driveURL=driveURL)
     tr.run()

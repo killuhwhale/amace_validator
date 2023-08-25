@@ -54,6 +54,7 @@ cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
 cp ./amace.go $directory/amace.go
 cp ./amace.py $directory/amace.py
 mkdir -p $triggerDirectory
+
 cp ./wssClient.py $triggerDirectory/wssClient.py
 cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
 
