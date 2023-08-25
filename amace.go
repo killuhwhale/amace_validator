@@ -53,12 +53,12 @@ var hostIP = testing.RegisterVarString(
 )
 var postURL = testing.RegisterVarString(
 	"arc.amace.posturl",
-	"https://appval-387223.wl.r.appspot.com/api/amaceResult",
+	"https://appvaldashboard.com/api/amaceResult",
 	"Url for api endpoint.",
 )
 var appResultURL = testing.RegisterVarString(
 	"arc.amace.latestresulturl",
-	"https://appval-387223.wl.r.appspot.com/api/latestAppResult",
+	"https://appvaldashboard.com/api/latestAppResult",
 	"Url for api endpoint",
 )
 var runTS = testing.RegisterVarString(
@@ -106,6 +106,11 @@ var skipLoggIn = testing.RegisterVarString(
 	"na",
 	"Skips log in.",
 )
+var installSource = testing.RegisterVarString(
+	"arc.amace.installsource",
+	"playstore",
+	"Where to install apps from",
+)
 
 func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("\n\n########################################")
@@ -115,6 +120,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("Device: ", device.Value())
 	s.Log("Start at: ", startat.Value())
 	s.Log("App creds: ", creds.Value())
+	s.Log("Install source ", installSource.Value())
 	var ac amace.AppCreds
 	err := json.Unmarshal([]byte(creds.Value()), &ac)
 	if err != nil {
@@ -262,23 +268,45 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// ####################################
 		s.Log("Installing app", appPack)
 
-		if status, err := amace.InstallARCApp(ctx, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
-			testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
-			// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
-			if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
-				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
-				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
-				if err != nil {
-					s.Log("Error posting: ", err)
+		if (installSource.Value()) == "playstore" {
+			if status, err := amace.InstallARCApp(ctx, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
+				testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
+				// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
+				if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
+					res, err := amace.PostData(
+						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
+						s, postURL.Value(), buildInfo, secret, deviceInfo)
+					if err != nil {
+						s.Log("Error posting: ", err)
 
+					}
+					s.Log("Post res: ", res)
+
+					continue
+				} else {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
 				}
-				s.Log("Post res: ", res)
+			}
+		} else {
+			if status, err := amace.InstallApkApp(appPack, hostIP.Value()); err != nil {
+				testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
+				// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
+				if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
+					res, err := amace.PostData(
+						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
+						s, postURL.Value(), buildInfo, secret, deviceInfo)
+					if err != nil {
+						s.Log("Error posting: ", err)
 
-				continue
-			} else {
-				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
+					}
+					s.Log("Post res: ", res)
+
+					continue
+				} else {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
+				}
 			}
 		}
 

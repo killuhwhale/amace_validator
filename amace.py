@@ -112,12 +112,24 @@ def get_local_ip():
     except Exception:
         sys.exit("Failed to get local ip!")
 
+def get_packages():
+    try:
+        dir = "/home/appval002/chromiumos/src/platform/tast-tests/cros/local/bundles/cros/arc/data/apks"
+        files = []
+        for file in os.listdir(dir):
+            files.append(file.split("-")[0])
+        print(files)
+        return files
+    except Exception as err:
+        sys.exit(f"Failed to get list of packages from apks to check: {err}")
+
 def load_apps(secret):
     apps = fetch_apps(secret)
     write_apps(apps)
 
 def fetch_apps(secret):
     '''Fetch apps from backend. NextJS -> FirebaseDB'''
+    print("Secret ", secret)
     headers = {"Authorization": secret}
     try:
         # res = requests.get("http://localhost:3000/api/applist", headers=headers)
@@ -287,6 +299,7 @@ class AMACE:
                 f"-var=arc.amace.runts={self.__run_ts}",
                 f"-var=arc.amace.runid={self.__run_id}",
                 f"-var=ui.gaiaPoolDefault={self.__test_account}",
+                f"-var=arc.amace.installsource=apks",
                 f"-var=arc.amace.account={self.__test_account}" , self.__device, "arc.AMACE")
 
         return self.__run_command(cmd)
@@ -378,6 +391,9 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--spath",
                         help="Path of secret.txt.",
                         default=f"{chroot_data_path}/AMACE_secret.txt", type=str)
+    parser.add_argument("-s", "--source",
+                        help="Source to install apps from",
+                        default="", type=str)
 
 
     ags = parser.parse_args()
@@ -394,7 +410,11 @@ if __name__ == "__main__":
 
     ips = [d for d in ags.device.split(" ") if d]
     secret = read_secret(secret_path)
-    load_apps(secret)
+    if ags.source == "apks":
+        apps = get_packages()
+        write_apps(apps)
+    else:
+        load_apps(secret)
     creds = fetch_app_creds(secret)
 
 
