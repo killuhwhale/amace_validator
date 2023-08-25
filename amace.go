@@ -9,12 +9,17 @@
 package arc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
 	"strings"
 	"time"
 
+	"go.chromium.org/tast-tests/cros/common/android/ui"
 	"go.chromium.org/tast-tests/cros/local/arc"
 	"go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace"
 
@@ -23,6 +28,7 @@ import (
 
 	"go.chromium.org/tast-tests/cros/local/input"
 	"go.chromium.org/tast/core/ctxutil"
+	"go.chromium.org/tast/core/errors"
 
 	"go.chromium.org/tast/core/testing"
 )
@@ -45,7 +51,7 @@ func init() {
 }
 
 // -var=arc.AccessVars.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult"
-// postURL is default "https://appval-387223.wl.r.appspot.com/api/amaceResult" || -var=arc.AccessVars.globalPOSTURL
+// postURL is default "https://appvaldashboard.com/api/amaceResult" || -var=arc.AccessVars.globalPOSTURL
 var hostIP = testing.RegisterVarString(
 	"arc.amace.hostip",
 	"192.168.1.1337",
@@ -53,7 +59,7 @@ var hostIP = testing.RegisterVarString(
 )
 var postURL = testing.RegisterVarString(
 	"arc.amace.posturl",
-	"https://appval-387223.wl.r.appspot.com/api/amaceResult",
+	"https://appvaldashboard.com/api/amaceResult",
 	"Url for api endpoint.",
 )
 var runTS = testing.RegisterVarString(
@@ -100,6 +106,21 @@ var skipLoggIn = testing.RegisterVarString(
 	"arc.amace.skiploggin",
 	"na",
 	"Skips log in.",
+)
+var dSrcPath = testing.RegisterVarString(
+	"arc.amace.dsrcpath",
+	"na",
+	"Firebase document path to get app list data",
+)
+var dSrcType = testing.RegisterVarString(
+	"arc.amace.dsrctype",
+	"na",
+	"Tells where to look for APK, Playstore or Pythonstore.",
+)
+var driveURL = testing.RegisterVarString(
+	"arc.amace.driveurl",
+	"na",
+	"Tells where to look for package name when using Pythonstore.",
 )
 
 func AMACE(ctx context.Context, s *testing.State) {
@@ -190,6 +211,18 @@ func AMACE(ctx context.Context, s *testing.State) {
 	}
 	defer keyboard.Close(ctx)
 
+	if dSrcType.Value() == "pythonstore" {
+		if err = AskToConnectADB(ctx, hostIP.Value(), device.Value()); err != nil {
+			testing.ContextLog(ctx, "Failed to ask for ADB connect!", err)
+		}
+		testing.ContextLog(ctx, "\n\n\n\n\n  Attempting to click ADB Allow: \n\n\n\n\n")
+		err = ConfirmADBUI(ctx, d)
+		testing.ContextLog(ctx, "Clicking ADB Allow: ", err)
+
+		// AcceptADBConnectUI()
+		// testing.Sleep(ctx, time.Second*30)
+	}
+
 	var arcWindow *ash.Window
 	errorDetector := amace.NewErrorDetector(ctx, a, s)
 	var appHistory amace.AppHistory
@@ -229,24 +262,33 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// ####################################
 		s.Log("Installing app", appPack)
 
-		if status, err := amace.InstallARCApp(ctx, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
-			testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
-			// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
-			if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
-				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
-				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
-				if err != nil {
-					s.Log("Error posting: ", err)
+		// If dSrcType == playstore
+		// If dSrcType == python store
+		if dSrcType.Value() == "playstore" {
+			if status, err := amace.InstallARCApp(ctx, a, d, appPack, strings.Split(account.Value(), ":")[1]); err != nil {
+				testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
+				// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
+				if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
+					res, err := amace.PostData(
+						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
+						s, postURL.Value(), buildInfo, secret, deviceInfo)
+					if err != nil {
+						s.Log("Error posting: ", err)
 
+					}
+					s.Log("Post res: ", res)
+
+					continue
+				} else {
+					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
 				}
-				s.Log("Post res: ", res)
-
-				continue
-			} else {
-				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
 			}
+		} else if dSrcType.Value() == "pythonstore" {
+			// Make request to Server with package name
+			// Get file, maybe a curl right into a download/ install?
+			GetAPK(ctx, hostIP.Value(), appPack.Pname, driveURL.Value(), device.Value())
+			continue
 		}
 
 		s.Log("App Installed", appPack)
@@ -473,4 +515,142 @@ func AMACE(ctx context.Context, s *testing.State) {
 	}
 	s.Log("--~~rundone") // Signals python parent manage-program that the run is over.
 
+}
+
+func ConfirmADBUI(ctx context.Context, d *ui.Device) error {
+	allowText := d.Object(ui.TextMatches("Allow"))
+	if err := allowText.WaitForExists(ctx, time.Second*30); err != nil {
+		testing.ContextLog(ctx, "Allow button not found: ", err)
+		return err
+	}
+	if err := allowText.Click(ctx); err != nil {
+		return errors.New("Failed to click Allow button.")
+	}
+	return nil
+}
+
+// device.Value()
+// AskToConnectADB sends ip address to connect host device to DUT via ADB
+func AskToConnectADB(ctx context.Context, hostIP, dutIP string) error {
+
+	testing.ContextLogf(ctx, "Host ip: %s => %s, ", hostIP, dutIP, driveURL)
+
+	// Create a new multipart buffer
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+
+	// Add the screenshot file
+	dutIPField, err := writer.CreateFormField("dutIP")
+	if err != nil {
+		return err
+	}
+
+	// Write the image data to the form file field
+	if _, err = dutIPField.Write([]byte(dutIP)); err != nil {
+		return err
+	}
+
+	// Close the multipart writer
+	writer.Close()
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/connectADB/", hostIP), body)
+	if err != nil {
+		testing.ContextLog(ctx, "Error unexpected: ", err)
+		return err
+	}
+
+	// Set the Content-Type header to the multipart form data boundary
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		testing.ContextLog(ctx, "Error unexpected: ", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		testing.ContextLog(ctx, "Error: ", fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	bodyString := string(bodyBytes)
+	testing.ContextLog(ctx, "Connect to ADB response: ", bodyString)
+	return nil
+}
+
+// GetAPK send package name and drive folder id to host server to download and ADB install...
+func GetAPK(ctx context.Context, hostIP, pkgName, driveURL, dutIP string) error {
+
+	testing.ContextLogf(ctx, "Host ip: %s => %s, %s", hostIP, pkgName, driveURL)
+
+	// Create a new multipart buffer
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+
+	// Add the screenshot file
+	pkgNameField, err := writer.CreateFormField("pkgName")
+	if err != nil {
+		return err
+	}
+
+	// Write the image data to the form file field
+	if _, err = pkgNameField.Write([]byte(pkgName)); err != nil {
+		return err
+	}
+
+	// Add the additional data field
+	driveURLField, err := writer.CreateFormField("driveURL")
+	if err != nil {
+		return err
+	}
+	driveURLField.Write([]byte(driveURL))
+
+	// Add the additional data field
+	dutIPField, err := writer.CreateFormField("dutIP")
+	if err != nil {
+		return err
+	}
+	dutIPField.Write([]byte(dutIP))
+
+	// Close the multipart writer
+	writer.Close()
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/pythonstore/", hostIP), body)
+	if err != nil {
+		testing.ContextLog(ctx, "Error unexpected: ", err)
+		return err
+	}
+
+	// Set the Content-Type header to the multipart form data boundary
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		testing.ContextLog(ctx, "Error unexpected: ", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		testing.ContextLog(ctx, "Error: ", fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	bodyString := string(bodyBytes)
+	testing.ContextLog(ctx, "Connect to ADB response: ", bodyString)
+
+	return nil
 }

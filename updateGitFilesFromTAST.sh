@@ -8,7 +8,7 @@
 # # ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
 # CHROMEOS_SRC="/home/$USER/chromiumos"
 
-
+triggerDirectory="${CHROMEOS_SRC}/src/scripts/wssTriggerEnv/wssTrigger"
 directory="${CHROMEOS_SRC}/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc"
 amace_dir="$directory/amace"
 
@@ -35,4 +35,8 @@ cp $amace_dir/yoloDetect.go             ./amace/yoloDetect.go
 # Main Test
 cp $directory/amace.go ./amace.go
 cp $directory/amace.py ./amace.py
+
+
+cp  $triggerDirectory/wssClient.py  ./wssClient.py
+cp  $triggerDirectory/wssReqs.txt   ./wssReqs.txt
 

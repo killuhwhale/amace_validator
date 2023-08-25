@@ -23,8 +23,11 @@ from . import views
 
 
 urlpatterns = [
+    # path('', include(router.urls)),
     path("", views.ImageViewSet.as_view()),
     path("yolo/", views.YoloViewSet.as_view()),
     path("email/", views.EmailViewSet.as_view()),
+    path("pythonstore/", views.PythonStoreViewSet.as_view()),
+    path("connectADB/", views.ConnectADBViewSet.as_view()),
     # path("admin/", admin.site.urls),
 ]

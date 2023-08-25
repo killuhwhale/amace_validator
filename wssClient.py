@@ -4,17 +4,16 @@ import select
 import signal
 import subprocess
 import threading
+import time
 import websockets
 import psutil
 
 DEVICE_NAME = value = os.environ.get('DNAME')
-
-process = None
-current_websocket = None  # Global variable to hold the current WebSocket
+exit_signal = threading.Event()
 process_event = threading.Event()
-
+current_websocket = None  # Global variable to hold the current WebSocket
 ip_address = "192.168.1.125"
-account = "tastarcplusplusappcompat14@gmail.com:1Z5-LT4Q1337 "
+account = "email@gmail.com:password"
 USER = os.environ.get("USER")
 cmd = [
         "python3",
@@ -23,36 +22,64 @@ cmd = [
         "-a", account,
         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
         "-l", "t",
+        "--dsrcpath", "AppLists/bstar",
+        "--dsrctype", "pythonstore",
 ]
 # cmd =["sleep", "30"]
 
+def kill():
+    exit_signal.set()
+
 def kill_proc_tree(pid, including_parent=True):
-    global process
+    print("kill proc tree")
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
     for child in children:
+        print("Terminating child: ", child)
         child.terminate()
     gone, still_alive = psutil.wait_procs(children, timeout=5)
     if including_parent:
         parent.terminate()
         parent.wait(5)
-    process = None
 
 def run_process(cmd):
     global process_event
     global current_websocket
+    global exit_signal
 
     process_event.set()
-    subprocess.run(cmd)
+    # Use Popen to start the process without blocking
+    process = subprocess.Popen(cmd)
+
+    while process.poll() is None:  # While the process is still running
+        if exit_signal.is_set():  # Check if exit signal is set
+            print("TERMINATING PROCESS")
+            kill_proc_tree(process.pid)
+            break
+        time.sleep(1)  # Sleep for a short duration before checking again
+
     process_event.clear()
+    exit_signal.clear()
 
     # Send a message over the websocket after the process completes
     if current_websocket:
         print("Process completed!")
         asyncio.run(current_websocket.send("Process completed!"))
 
+
 async def listen_to_ws():
     """TODO()
+
+    Statuses:
+        STARTED
+
+    Create and endpoint that we can send a runID to
+        - We will first start by Checking in the brand new Run via RUN ID and a status STARTED
+
+        When done we send SUCCUSS
+
+        If something fails
+
 
     So far we have a system where we can query for all devices running the client program.
 
@@ -88,14 +115,13 @@ async def listen_to_ws():
 
 
     """
-    global process
     global cmd
     global DEVICE_NAME
     global current_websocket
     global process_event
 
-    uri = "ws://localhost:3001/wss/"
     uri = "wss://appvaldashboard.com/wss/"
+    uri = "ws://localhost:3001/wss/"
     print(f"Device: {DEVICE_NAME} is using URI: ", uri)
     while True:
         try:
@@ -106,18 +132,16 @@ async def listen_to_ws():
                     message = await websocket.recv()
                     print(f"Received message: {message} ")
                     if message == f"startrun_{DEVICE_NAME}":
-                        if process is None or process.poll() is not None:  # Start only if not already running
-                            # process = subprocess.Popen(cmd)
-                            if not process_event.is_set():  # Check if the process is not already running
-                                thread = threading.Thread(target=run_process, args=(cmd,))
-                                thread.start()
+                        if not process_event.is_set():  # Check if the process is not already running
+                            thread = threading.Thread(target=run_process, args=(cmd,))
+                            thread.start()
                             print("Run started!")
                             await websocket.send(f"runstarted:{DEVICE_NAME}")
                         else:
                             print("Run in progress!")
                             await websocket.send(f"runstarted:{DEVICE_NAME}:runinprogress")
                     elif message == f"querystatus_{DEVICE_NAME}":
-                        status_msg =  "running" if process and process.poll() is None is None else "stopped"
+                        status_msg =  "running" if process_event.is_set() else "stopped"
                         status = f"status:{DEVICE_NAME}:{status_msg}"
                         print("Sending status: ", status)
                         await websocket.send(status)
@@ -126,13 +150,13 @@ async def listen_to_ws():
                         await websocket.send(f"getdevicename:{DEVICE_NAME}")
 
                     elif message == f"stoprun_{DEVICE_NAME}":
-                        print("Run stopped!")
-                        if process and process.poll() is None:  # Check if process is running
-                            kill_proc_tree(process.pid)
+                        print("Run stopping....")
+                        if process_event.is_set():  # Check if process is running
+                            kill()
                             print("Run stopped!")
                             await websocket.send(f"runstopped:{DEVICE_NAME}")
-                    elif not process is None:
-                        print("We can print out the output from process here every 2s...", process)
+                    # elif not thread is None:
+                    #     print("We can print out the output from process here every 2s...", thread)
 
 
         except websockets.ConnectionClosed:
@@ -147,3 +171,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(listen_to_ws())
     loop.run_forever()
+
+
+
+
