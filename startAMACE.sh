@@ -20,6 +20,12 @@ function usage {
     echo "                          (example: t)"
     echo "  -l  string             Skip login."
     echo "                          (example: t)"
+    echo "  -p  string             Path of secret.txt."
+    echo "                          (example: chrooot/AMACE_secret.txt)"
+    echo "  -s  string             Firebase document location."
+    echo "                          (example: AppLists/live)"
+    echo "  -t  string             App list source."
+    echo "                          (example: playstore or pythonstore)"
     echo ""
 }
 
@@ -29,7 +35,7 @@ sbroken="f"
 slogin="f"
 
 # Parse command-line options
-while getopts ":d:u:a:w:b:l:" opt; do
+while getopts ":d:u:a:w:b:l:p:s:t:" opt; do
   case ${opt} in
     d)
       # Device addresses
@@ -55,6 +61,18 @@ while getopts ":d:u:a:w:b:l:" opt; do
       # Skip login
       slogin=$OPTARG
       ;;
+    p)
+      # Path of secret.txt
+      spath=$OPTARG
+      ;;
+    s)
+      # Firebase document location
+      slocation=$OPTARG
+      ;;
+    t)
+      # App list source
+      slist=$OPTARG
+      ;;
     *)
       usage
       exit 1
@@ -71,8 +89,8 @@ done
 if [[ -z ${url} ]]; then
   echo "Using default URL"
 #   ~/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc
-  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}"
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}" -p "${spath}" -s "${slocation}" -t "${slist}"
 else
   echo "Using URL: ${url}"
-  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}"
+  python3 ../platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py -d "${devices}" -u "${url}" -a "${account}" -w "${samace}" -b "${sbroken}" -l "${slogin}" -p "${spath}" -s "${slocation}" -t "${slist}"
 fi

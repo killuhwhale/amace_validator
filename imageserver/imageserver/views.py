@@ -27,6 +27,7 @@ from google.cloud import storage
 storage_client = storage.Client()
 
 # Set up Google Drive service
+print("Env ", os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
 creds = Credentials.from_service_account_file(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
                                               scopes=['https://www.googleapis.com/auth/drive.readonly'])
 service = build('drive', 'v3', credentials=creds)
@@ -81,9 +82,40 @@ def installADB(tid, file_path):
     except Exception as err:
         print("Error installing: ", file_path, err)
         return False
+    
+def installMultipleADB(tid, file_path):
+    try:
+        print(f"Attempting to install {file_path}")
+        cmd = ('unzip', '-o', file_path)
+        outstr = subprocess.run(cmd, check=True, encoding='utf-8',
+                                capture_output=True).stdout.strip()
+        print(outstr)
+
+        apkFiles = []
+        for file in os.listdir("."):
+            if file.endswith(".apk"):
+                print(file)
+                apkFiles.append(file)
+
+        print("Attempting install-multiple")
+        cmd = (['adb', 'install-multiple'] + apkFiles)
+        print(cmd)
+        outstr = subprocess.run(cmd, check=True, encoding='utf-8',
+                                capture_output=True).stdout.strip()
+        print(outstr)
+        
+        print("Attempting to remove apk files")
+        cmd = (['rm'] + apkFiles)
+        outstr = subprocess.run(cmd, check=True, encoding='utf-8',
+                                capture_output=True).stdout.strip()
+        print(outstr)
+    except Exception as err:
+        print("Error installing: ", file_path, err.output())
+        return False
 
 
 def download_file_from_drive(file_id, output_path):
+    print("Downloading file from drive")
     request = service.files().get_media(fileId=file_id)
     with open(output_path, 'wb') as f:
         downloader = MediaIoBaseDownload(f, request)
@@ -112,24 +144,52 @@ class ConnectADBViewSet(APIView):
         except Exception as err:
             print("Error connecting to ADB", err)
             return Response({"data": None, "error": f"Failed to connect to ADB {err}"})
+        
 
+class APKList(APIView):
+
+    def get(self, req, format=None):
+        print(req)
+        drive_url = req.data['driveURL']
+        print("Drive URL ", drive_url)
+
+        try:
+            file_names = []
+            response = service.files().list(q=f"'{drive_url}' in parents").execute()
+            #print("Google drive response: ", response)
+            files = response.get('files', [])
+            #print("Google drive response files: ", files)
+            file_id = None
+            for file in files:
+                file_names.append(file['name'] + "\t" + file['name'].split('-')[0])
+            print(file_names)
+            print(Response({"data": file_names, "error": None}))
+            return Response({"data": file_names, "error": None})
+        except Exception as err:
+            return Response({"data": None, "error": f"Failed to get list of packages from apks to check: {err}"})
 
 
 class PythonStoreViewSet(APIView):
 
     def post(self, req, format=None):
+        print("In Python Store View Set post")
+        file_name = req.data['aName']
         pkg_name = req.data['pkgName']
         drive_url = req.data['driveURL']
         dutIP = req.data['dutIP']
         # TODO() find transport id from ip dutIP
         tid = find_transport_id(dutIP)
-        print(f"DUT requested {pkg_name} from {drive_url}")
+        print(f"DUT requested {file_name} from {drive_url}")
+        print("Drive URL ", drive_url)
         try:
             # Assuming files are stored in a folder named 'files' in the server's directory
-            file_path = os.path.join(APKFolder, pkg_name)
+            print("Looking for file in folder ", APKFolder, "with pkg_name", file_name)
+            file_path = os.path.join(APKFolder, file_name)
+            print(file_path)
 
             # Check if file exists on server
-            if not os.path.exists(f"{file_path}.apk"):
+            if not os.path.exists(file_path):
+                print("In if")
                 # If not, fetch from Google Drive and store on server
                 # Here, you'd need a way to determine the correct file ID based on package_name
                 # For now, I'm assuming file_id is passed but you may want to create a mapping
@@ -137,15 +197,19 @@ class PythonStoreViewSet(APIView):
                 # folder_id = "1Lq_IdWlN9KOJT-h8dPiJsLFaRnHusg6e"
                 folder_id = drive_url
                 response = service.files().list(q=f"'{folder_id}' in parents").execute()
-                # print("Google drive response: ", response)
+                #print("Google drive response: ", response)
                 files = response.get('files', [])
-                # print("Google drive response files: ", files)
+                #print("Google drive response files: ", files)
                 file_id = None
                 for file in files:
+                    print(file)
                     # print("File in folder: ", file, file['name'])
                     if str(file['name']).startswith(pkg_name):
                         file_id = file['id']
-                        file_path = os.path.join(file_path, file['name'].split(".")[:-1])
+                        print("file_id " , file_id)
+                        print("file_name ", file['name'])
+                        #file_path = os.path.join(file_path, file['name'].split(".")[:-1])
+                        print("file_path ", file_path)
                         break
 
                 if file_id:
@@ -153,8 +217,12 @@ class PythonStoreViewSet(APIView):
                 else:
                     return Response({"data": None, "error": "File not found in Google Drive"})
 
-            if installADB(tid, f"{file_path}.apk"):
-                return Response({"data": "Installed.", "error": None})
+            if ".apk" in file_path:
+                if installADB(tid, file_path):
+                    return Response({"data": "Installed.", "error": None})
+            else:
+                if installMultipleADB(tid, file_path):
+                    return Response({"data": "Installed.", "error": None})
             return Response({"data": None, "error": f"Failed to install: {pkg_name}"})
         except Exception as err:
             print("Failed to get APK: ", err)

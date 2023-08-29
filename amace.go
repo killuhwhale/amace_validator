@@ -136,7 +136,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("Device: ", device.Value())
 	s.Log("Start at: ", startat.Value())
 	s.Log("App creds: ", creds.Value())
-	s.Log("Install source ", installSource.Value())
+	s.Log("Install source: ", dSrcType.Value())
+	s.Log("Drive URL: ", driveURL.Value())
 	var ac amace.AppCreds
 	err := json.Unmarshal([]byte(creds.Value()), &ac)
 	if err != nil {
@@ -194,6 +195,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	if err != nil {
 		s.Fatal("Error loading App List.tsv: ", err)
 	}
+	s.Log(testApps)
 	arcV, err := a.GetProp(ctx, "ro.build.version.release")
 	if err != nil {
 		s.Fatal("Failed to get Arc Verson for device")
@@ -255,6 +257,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("###############################")
 
 	for _, appPack := range testApps {
+		s.Log("appPack ", appPack)
 		// Reset Final logs
 		finalLogs = ""
 		// Reset HistoryLoadAppList
@@ -321,8 +324,10 @@ func AMACE(ctx context.Context, s *testing.State) {
 		} else if dSrcType.Value() == "pythonstore" {
 			// Make request to Server with package name
 			// Get file, maybe a curl right into a download/ install?
-			GetAPK(ctx, hostIP.Value(), appPack.Pname, driveURL.Value(), device.Value())
-			continue
+			err := GetAPK(ctx, hostIP.Value(), appPack.Aname, appPack.Pname, driveURL.Value(), device.Value())
+			if err != nil {
+				continue
+			}
 		}
 
 		s.Log("App Installed", appPack)
@@ -620,7 +625,7 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP string) error {
 }
 
 // GetAPK send package name and drive folder id to host server to download and ADB install...
-func GetAPK(ctx context.Context, hostIP, pkgName, driveURL, dutIP string) error {
+func GetAPK(ctx context.Context, hostIP, aName, pkgName, driveURL, dutIP string) error {
 
 	testing.ContextLogf(ctx, "Host ip: %s => %s, %s", hostIP, pkgName, driveURL)
 
@@ -636,6 +641,17 @@ func GetAPK(ctx context.Context, hostIP, pkgName, driveURL, dutIP string) error 
 
 	// Write the image data to the form file field
 	if _, err = pkgNameField.Write([]byte(pkgName)); err != nil {
+		return err
+	}
+
+	// Add the screenshot file
+	aNameField, err := writer.CreateFormField("aName")
+	if err != nil {
+		return err
+	}
+
+	// Write the image data to the form file field
+	if _, err = aNameField.Write([]byte(aName)); err != nil {
 		return err
 	}
 

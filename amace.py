@@ -124,19 +124,28 @@ def fetch_apps(secret, dsrcpath, dsrctype):
     headers = {"Authorization": secret}
     try:
         res = requests.get(f"http://localhost:3000/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
-        # res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
-        # res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
+        #res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
+        #res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
         result = json.loads(res.text)
-        print("Reults getch apps: ", result)
-
-        s = result['data']['data']
+        print("Results fetch apps: ", result)
         driveURL = ""
         try:
             driveURL = result['data']['driveURL']
         except Exception as err:
             print("No drive url returned!")
+        
+        if dsrcpath == "AppLists/live":
+            s = result['data']['data']
+            results = s.replace("\\t", "\t").split("\\n")
 
-        results = s.replace("\\t", "\t").split("\\n")
+        else:
+            data = {
+                "driveURL": driveURL,
+            }
+            results = requests.get(f"http://10.0.0.168:8000/apklist/", headers=headers, json=data)
+            json_data = json.loads(results.text)
+            results = json_data['data']
+        
         print(f"{driveURL=} -- {results=}")
         return results, driveURL
     except Exception as err:
@@ -425,18 +434,20 @@ if __name__ == "__main__":
     skip_amace = ags.samace
     skip_broken = ags.sbroken
     skip_login = ags.slogin
-    secret_path=ags.spath
+    secret_path=f"{chroot_data_path}/AMACE_secret.txt"
     dsrcpath=ags.dsrcpath
     dsrctype=ags.dsrctype
 
     host_ip = get_local_ip()
-    print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
+    print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=} {secret_path=} {dsrcpath=} {dsrctype=}\n\n")
     # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
 
     ips = [d for d in ags.device.split(" ") if d]
     secret = read_secret(secret_path)
     # TODO, PIPE THIS DOWN TO AMACE.GO
     driveURL = load_apps(secret, dsrcpath,  dsrctype)
+    print(driveURL)
+
     creds = fetch_app_creds(secret)
 
 

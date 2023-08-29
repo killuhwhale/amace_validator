@@ -31,7 +31,7 @@ func InstallApkApp(ctx context.Context, s *testing.State, appPack AppPackage, ip
 		testing.ContextLogf(ctx, "FAILED: ", err)
 		return Fail, err
 	}
-	testing.ContextLogf(ctx, fmt.Sprint(files))
+	
 	for _, file := range files {
 		testing.ContextLogf(ctx, file.Name())
 		if strings.Contains(file.Name(), appPack.Pname) {
