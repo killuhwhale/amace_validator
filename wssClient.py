@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import select
 import signal
@@ -13,19 +14,41 @@ exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
 ip_address = "192.168.1.125"
-account = "email@gmail.com:password"
+account = "tastarcplusplusappcompat14@gmail.com:1Z5-LT4Q1337"
 USER = os.environ.get("USER")
-cmd = [
+# cmd = [
+#         "python3",
+#         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
+#         "-d", ip_address,
+#         "-a", account,
+#         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
+#         "-l", "t",
+#         "--dsrcpath", "AppLists/bstar",
+#         "--dsrctype", "pythonstore",
+# ]
+
+
+def cmd(dsrcpath, dsrctype):
+    return [
         "python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
         "-d", ip_address,
         "-a", account,
         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
         "-l", "t",
-        "--dsrcpath", "AppLists/bstar",
-        "--dsrctype", "pythonstore",
-]
-# cmd =["sleep", "30"]
+        "--dsrcpath", f"AppLists/{dsrcpath}",
+        "--dsrctype", dsrctype,
+    ]
+
+def get_d_src_type(playstore: bool):
+    return "playstore" if playstore else "pythonstore"
+
+def ping(msg, data):
+    return str(json.dumps({"msg": msg, "data": data}))
+
+def pj(s: str):
+    # parse json
+    return json.loads(s)
 
 def kill():
     exit_signal.set()
@@ -64,7 +87,8 @@ def run_process(cmd):
     # Send a message over the websocket after the process completes
     if current_websocket:
         print("Process completed!")
-        asyncio.run(current_websocket.send("Process completed!"))
+        asyncio.run(current_websocket.send(ping("Process completed!", {})))
+
 
 
 async def listen_to_ws():
@@ -129,32 +153,45 @@ async def listen_to_ws():
             async with websockets.connect(uri) as websocket:
                 current_websocket = websocket
                 while True:
-                    message = await websocket.recv()
+                    mping = pj(await websocket.recv())
+                    message = mping['msg']
+                    data = mping['data']
                     print(f"Received message: {message} ")
                     if message == f"startrun_{DEVICE_NAME}":
-                        if not process_event.is_set():  # Check if the process is not already running
-                            thread = threading.Thread(target=run_process, args=(cmd,))
+                        # Check if the process is not already running
+                        if not process_event.is_set():
+
+                            start_cmd = cmd(
+                                        data['listname'],
+                                        get_d_src_type(data['playstore']))
+                            print("using start command: ", start_cmd)
+                            thread = threading.Thread(
+                                target=run_process,
+                                args=(start_cmd, )
+                            )
                             thread.start()
                             print("Run started!")
-                            await websocket.send(f"runstarted:{DEVICE_NAME}")
+                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}", {}))
                         else:
                             print("Run in progress!")
-                            await websocket.send(f"runstarted:{DEVICE_NAME}:runinprogress")
+                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}:runinprogress", {}))
                     elif message == f"querystatus_{DEVICE_NAME}":
                         status_msg =  "running" if process_event.is_set() else "stopped"
                         status = f"status:{DEVICE_NAME}:{status_msg}"
                         print("Sending status: ", status)
-                        await websocket.send(status)
+                        await websocket.send(ping(status, {}))
                     elif message == "getdevicename":
                         print("Sending name: ", DEVICE_NAME)
-                        await websocket.send(f"getdevicename:{DEVICE_NAME}")
+                        tts = ping(f"getdevicename:{DEVICE_NAME}", {"key": "value"})
+                        print("Sending name: ", tts, type(tts))
+                        await websocket.send(tts)
 
                     elif message == f"stoprun_{DEVICE_NAME}":
                         print("Run stopping....")
                         if process_event.is_set():  # Check if process is running
                             kill()
                             print("Run stopped!")
-                            await websocket.send(f"runstopped:{DEVICE_NAME}")
+                            await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}))
                     # elif not thread is None:
                     #     print("We can print out the output from process here every 2s...", thread)
 
