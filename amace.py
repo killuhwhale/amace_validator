@@ -113,17 +113,17 @@ def get_local_ip():
     except Exception:
         sys.exit("Failed to get local ip!")
 
-def load_apps(secret, dsrcpath, dsrctype):
-    apps,  driveURL = fetch_apps(secret, dsrcpath,  dsrctype)
+def load_apps(host_ip, secret, dsrcpath, dsrctype):
+    apps,  driveURL = fetch_apps(host_ip, secret, dsrcpath,  dsrctype)
     write_apps(apps)
     return driveURL
 
-def fetch_apps(secret, dsrcpath, dsrctype):
+def fetch_apps(host_ip, secret, dsrcpath, dsrctype):
     '''Fetch apps from backend. NextJS -> FirebaseDB'''
     headers = {"Authorization": secret}
     try:
-        res = requests.get(f"http://localhost:3000/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
-        # res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
+        # res = requests.get(f"http://localhost:3000/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
+        res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
         # res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
         result = json.loads(res.text)
         print("Reults getch apps: ", result)
@@ -132,8 +132,23 @@ def fetch_apps(secret, dsrcpath, dsrctype):
         driveURL = ""
         try:
             driveURL = result['data']['driveURL']
+            print("Run requested files from driveURL: ", driveURL)
+            if len(s) == 0:
+                json_data = json.loads(
+                    requests.get(
+                        f"http://{host_ip}:8000/apklist/",
+                        headers=headers,
+                        json={"driveURL": driveURL}
+                    ).text
+                )
+                print(f"{json_data=}")
+                s = json_data['data']
+                print("Run requested to test all apps: ", s)
+            else:
+                print("Run requested to test: ", s)
+
         except Exception as err:
-            print("No drive url returned!")
+            print("No drive url returned!", err)
 
         results = s.replace("\\t", "\t").split("\\n")
         print(f"{driveURL=} -- {results=}")
@@ -434,7 +449,7 @@ if __name__ == "__main__":
     ips = [d for d in ags.device.split(" ") if d]
     secret = read_secret(secret_path)
     # TODO, PIPE THIS DOWN TO AMACE.GO
-    driveURL = load_apps(secret, dsrcpath,  dsrctype)
+    driveURL = load_apps(host_ip, secret, dsrcpath,  dsrctype)
     creds = fetch_app_creds(secret)
 
 

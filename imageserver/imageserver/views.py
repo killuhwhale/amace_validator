@@ -198,6 +198,29 @@ def installByBlankFilePath(tid, file_path):
 
     print(f"Unable to install {file_path}, file not found on local server")
 
+class APKList(APIView):
+
+    def get(self, req, format=None):
+        print(req)
+        drive_url = req.data['driveURL']
+        print("Drive URL ", drive_url)
+
+        try:
+            file_names = []
+            response = service.files().list(q=f"'{drive_url}' in parents").execute()
+            #print("Google drive response: ", response)
+            files = response.get('files', [])
+            #print("Google drive response files: ", files)
+            file_id = None
+            for file in files:
+                file_names.append(file['name'] + "\\t" + file['name'].split('-')[0])
+
+            escaped_package_names = "\\n".join(file_names)
+            print("Returning escaped packages: ", escaped_package_names)
+            return Response({"data": escaped_package_names, "error": None})
+        except Exception as err:
+            return Response({"data": None, "error": f"Failed to get list of packages from apks to check: {err}"})
+
 class PythonStoreViewSet(APIView):
 
     def post(self, req, format=None):

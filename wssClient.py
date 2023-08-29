@@ -144,8 +144,8 @@ async def listen_to_ws():
     global current_websocket
     global process_event
 
-    uri = "wss://appvaldashboard.com/wss/"
     uri = "ws://localhost:3001/wss/"
+    uri = "wss://appvaldashboard.com/wss/"
     print(f"Device: {DEVICE_NAME} is using URI: ", uri)
     while True:
         try:
