@@ -16,16 +16,18 @@ current_websocket = None  # Global variable to hold the current WebSocket
 ip_address = "192.168.1.125"
 account = "tastarcplusplusappcompat14@gmail.com:1Z5-LT4Q1337"
 USER = os.environ.get("USER")
-# cmd = [
-#         "python3",
-#         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
-#         "-d", ip_address,
-#         "-a", account,
-#         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
-#         "-l", "t",
-#         "--dsrcpath", "AppLists/bstar",
-#         "--dsrctype", "pythonstore",
-# ]
+
+Red = "\033[31m"
+Black = "\033[30m"
+Green = "\033[32m"
+Yellow = "\033[33m"
+Blue = "\033[34m"
+Purple = "\033[35m"
+Cyan = "\033[36m"
+White = "\033[37m"
+RESET = "\033[0m"
+
+line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue} (ws){RESET}"
 
 
 def cmd(dsrcpath, dsrctype):
@@ -54,11 +56,11 @@ def kill():
     exit_signal.set()
 
 def kill_proc_tree(pid, including_parent=True):
-    print("kill proc tree")
+    print(line_start, "kill proc tree")
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
     for child in children:
-        print("Terminating child: ", child)
+        print(line_start, "Terminating child: ", child)
         child.terminate()
     gone, still_alive = psutil.wait_procs(children, timeout=5)
     if including_parent:
@@ -76,7 +78,7 @@ def run_process(cmd):
 
     while process.poll() is None:  # While the process is still running
         if exit_signal.is_set():  # Check if exit signal is set
-            print("TERMINATING PROCESS")
+            print(line_start, "TERMINATING PROCESS")
             kill_proc_tree(process.pid)
             break
         time.sleep(1)  # Sleep for a short duration before checking again
@@ -86,7 +88,7 @@ def run_process(cmd):
 
     # Send a message over the websocket after the process completes
     if current_websocket:
-        print("Process completed!")
+        print(line_start, "Process completed!")
         asyncio.run(current_websocket.send(ping("Process completed!", {})))
 
 
@@ -146,7 +148,7 @@ async def listen_to_ws():
 
     uri = "ws://localhost:3001/wss/"
     uri = "wss://appvaldashboard.com/wss/"
-    print(f"Device: {DEVICE_NAME} is using URI: ", uri)
+    print(line_start, f"Device: {DEVICE_NAME} is using URI: ", uri)
     while True:
         try:
             # The connection will persist as long as the server keeps it open
@@ -156,7 +158,7 @@ async def listen_to_ws():
                     mping = pj(await websocket.recv())
                     message = mping['msg']
                     data = mping['data']
-                    print(f"Received message: {message} ")
+                    print(line_start, f"Received message: {message} ")
                     if message == f"startrun_{DEVICE_NAME}":
                         # Check if the process is not already running
                         if not process_event.is_set():
@@ -164,42 +166,42 @@ async def listen_to_ws():
                             start_cmd = cmd(
                                         data['listname'],
                                         get_d_src_type(data['playstore']))
-                            print("using start command: ", start_cmd)
+                            print(line_start, "using start command: ", start_cmd)
                             thread = threading.Thread(
                                 target=run_process,
                                 args=(start_cmd, )
                             )
                             thread.start()
-                            print("Run started!")
+                            print(line_start, "Run started!")
                             await websocket.send(ping(f"runstarted:{DEVICE_NAME}", {}))
                         else:
-                            print("Run in progress!")
+                            print(line_start, "Run in progress!")
                             await websocket.send(ping(f"runstarted:{DEVICE_NAME}:runinprogress", {}))
                     elif message == f"querystatus_{DEVICE_NAME}":
                         status_msg =  "running" if process_event.is_set() else "stopped"
                         status = f"status:{DEVICE_NAME}:{status_msg}"
-                        print("Sending status: ", status)
+                        print(line_start, "Sending status: ", status)
                         await websocket.send(ping(status, {}))
                     elif message == "getdevicename":
-                        print("Sending name: ", DEVICE_NAME)
+                        print(line_start, "Sending name: ", DEVICE_NAME)
                         tts = ping(f"getdevicename:{DEVICE_NAME}", {"key": "value"})
-                        print("Sending name: ", tts, type(tts))
+                        print(line_start, "Sending name: ", tts, type(tts))
                         await websocket.send(tts)
 
                     elif message == f"stoprun_{DEVICE_NAME}":
-                        print("Run stopping....")
+                        print(line_start, "Run stopping....")
                         if process_event.is_set():  # Check if process is running
                             kill()
-                            print("Run stopped!")
+                            print(line_start, "Run stopped!")
                             await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}))
                     # elif not thread is None:
-                    #     print("We can print out the output from process here every 2s...", thread)
+                    #     print(line_start, "We can print out the output from process here every 2s...", thread)
 
 
         except websockets.ConnectionClosed:
-            print("Connection with the server was closed. Retrying in 5 seconds...")
+            print(line_start, "Connection with the server was closed. Retrying in 5 seconds...")
         except Exception as e:
-            print(f"An error occurred: {e}. Retrying in 5 seconds...")
+            print(line_start, f"An error occurred: {e}. Retrying in 5 seconds...")
 
         await asyncio.sleep(5)  # Wait for 5 seconds before trying to rec
 

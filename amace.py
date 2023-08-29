@@ -54,6 +54,8 @@ def p_purple(*args, end='\n'):
 def p_cyan(*args, end='\n'):
     print(Cyan, *args, RESET, end=end)
 
+line_start = f"{Blue}>{Red}>{Yellow}>{Green}> (py){RESET}"
+
 
 # enum AppType {
 #   APP = "App",
@@ -126,13 +128,13 @@ def fetch_apps(host_ip, secret, dsrcpath, dsrctype):
         res = requests.get(f"https://appvaldashboard.com/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}", headers=headers)
         # res = requests.get(f"https://appvaldashboard.com/api/applist", headers=headers)
         result = json.loads(res.text)
-        print("Reults getch apps: ", result)
+        print(line_start, "Reults getch apps: ", result)
 
         s = result['data']['data']
         driveURL = ""
         try:
             driveURL = result['data']['driveURL']
-            print("Run requested files from driveURL: ", driveURL)
+            print(line_start, "Run requested files from driveURL: ", driveURL)
             if len(s) == 0:
                 json_data = json.loads(
                     requests.get(
@@ -141,17 +143,17 @@ def fetch_apps(host_ip, secret, dsrcpath, dsrctype):
                         json={"driveURL": driveURL}
                     ).text
                 )
-                print(f"{json_data=}")
+                print(line_start, f"{json_data=}")
                 s = json_data['data']
-                print("Run requested to test all apps: ", s)
+                print(line_start, "Run requested to test all apps: ", s)
             else:
-                print("Run requested to test: ", s)
+                print(line_start, "Run requested to test: ", s)
 
         except Exception as err:
-            print("No drive url returned!", err)
+            print(line_start, "No drive url returned!", err)
 
         results = s.replace("\\t", "\t").split("\\n")
-        print(f"{driveURL=} -- {results=}")
+        print(line_start, f"{driveURL=} -- {results=}")
         return results, driveURL
     except Exception as err:
         sys.exit(f"Failed to get list of apps to check: {err}")
@@ -306,7 +308,7 @@ class AMACE:
                 # Error output from TAST when test fails to complete.
                 if "Error: Test did not finish" in msg:
                     self.__log_error = True
-                print(msg)
+                print(line_start, msg)
 
             # Wait for the process to complete and get the return code
             process.wait()
@@ -336,20 +338,20 @@ class AMACE:
 
     def __post_err(self):
         """Sends post request to backed to store result in Firebase when an error happens."""
-        print(f"Posting error from python ")
+        print(line_start, f"Posting error from python ")
         headers = {'Authorization': self.__api_key}
         res = requests.post(self.__BASE_URL, data=self.__request_body.__dict__, headers=headers)
-        print(f"{res=}")
+        print(line_start, f"{res=}")
         self.__log_error = False
 
     def start(self):
         """Starts the TAST test and ensures it completes."""
         N = len(self.__packages)
-        print("Num apps to test: ", N)
-        print("Running tests now!")
+        print(line_start, "Num apps to test: ", N)
+        print(line_start, "Running tests now!")
 
         while not self.__run_finished:
-            p_green(f"Starting a TAST run with {self.__current_package=}")
+            p_green(line_start, f"Starting a TAST run with {self.__current_package=}")
             self.__run_tast()
             if not self.__run_finished:
                 self.__package_retries[self.__current_package] += 1
@@ -357,7 +359,7 @@ class AMACE:
                     if self.__log_error:
                         self.__post_err()
                     self.__current_package = self.__get_next_app(self.__current_package)
-            p_red(f"Tast run over with: {self.__current_package=}")
+            p_red(line_start, f"Tast run over with: {self.__current_package=}")
 
 
 class MultiprocessTaskRunner:
@@ -386,7 +388,7 @@ class MultiprocessTaskRunner:
             process.start()
             self.__processes.append(process)
         except Exception as error:
-            print("Error start process: ",  error)
+            print(line_start, "Error start process: ",  error)
 
     def run(self):
         # start process
@@ -443,7 +445,7 @@ if __name__ == "__main__":
     dsrctype=ags.dsrctype
 
     host_ip = get_local_ip()
-    print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
+    print(line_start, f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
     # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
 
     ips = [d for d in ags.device.split(" ") if d]
@@ -453,6 +455,6 @@ if __name__ == "__main__":
     creds = fetch_app_creds(secret)
 
 
-    print("Starting on devices: ", ips)
+    print(line_start, "Starting on devices: ", ips)
     tr = MultiprocessTaskRunner(url, host_ip, secret=secret, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login, dsrcpath=dsrcpath, dsrctype=dsrctype, driveURL=driveURL)
     tr.run()
