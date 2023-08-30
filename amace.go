@@ -508,7 +508,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		ar := amace.AppResult{}
 
 		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults}
-		s.Log("💥✅❌✅💥 App Result: ", ar)
+		s.Log("💥 ✅ ❌ ✅ 💥 App Result: ", ar)
 
 		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
 		if err != nil {

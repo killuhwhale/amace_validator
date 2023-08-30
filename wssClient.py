@@ -1,5 +1,6 @@
 import asyncio
 import json
+import jwt
 import os
 import select
 import signal
@@ -27,7 +28,30 @@ Cyan = "\033[36m"
 White = "\033[37m"
 RESET = "\033[0m"
 
-line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue} (ws){RESET}"
+line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET}"
+
+cwd = os.getcwd()
+
+def read_secret():
+    secret = ""
+    with open(f"{cwd}/nextAuthSecret.txt", 'r') as f:
+        secret = f.readline()
+    return secret
+
+def encode_jwt(payload, secret, algorithm='HS512'):
+    """
+    Encode a payload into a JWT token.
+
+    Parameters:
+    - payload: The data you want to encode into the JWT.
+    - secret: The secret key to sign the JWT.
+    - algorithm: The algorithm to use for signing. Default is 'HS512'.
+
+    Returns:
+    - Encoded JWT token as a string.
+    """
+    encoded_jwt = jwt.encode(payload, secret, algorithm=algorithm)
+    return encoded_jwt
 
 
 def cmd(dsrcpath, dsrctype):
@@ -45,8 +69,8 @@ def cmd(dsrcpath, dsrctype):
 def get_d_src_type(playstore: bool):
     return "playstore" if playstore else "pythonstore"
 
-def ping(msg, data):
-    return str(json.dumps({"msg": msg, "data": data}))
+def ping(msg, data, wssToken):
+    return str(json.dumps({"msg": msg, "data": {**data, "wssToken": wssToken}}))
 
 def pj(s: str):
     # parse json
@@ -67,21 +91,33 @@ def kill_proc_tree(pid, including_parent=True):
         parent.terminate()
         parent.wait(5)
 
-def run_process(cmd):
+def run_process(cmd, wssToken):
     global process_event
     global current_websocket
     global exit_signal
 
     process_event.set()
     # Use Popen to start the process without blocking
-    process = subprocess.Popen(cmd)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     while process.poll() is None:  # While the process is still running
         if exit_signal.is_set():  # Check if exit signal is set
             print(line_start, "TERMINATING PROCESS")
             kill_proc_tree(process.pid)
             break
-        time.sleep(1)  # Sleep for a short duration before checking again
+        output = ""
+        try:
+            # output = process.stdout.readline().decode("utf-8").strip("\n")
+            output = process.stdout.readline()
+            print(line_start, "Progress: ", output)
+        except Exception as err:
+            print("Error decoding message and sending progress: ", err)
+            output = process.stdout.readline()
+
+        if current_websocket:
+            asyncio.run(current_websocket.send(ping(f"progress:{line_start}{output}", {}, wssToken)))
+
+        time.sleep(.1)  # Sleep for a short duration before checking again
 
     process_event.clear()
     exit_signal.clear()
@@ -89,7 +125,7 @@ def run_process(cmd):
     # Send a message over the websocket after the process completes
     if current_websocket:
         print(line_start, "Process completed!")
-        asyncio.run(current_websocket.send(ping("Process completed!", {})))
+        asyncio.run(current_websocket.send(ping("Process completed!", {}, wssToken)))
 
 
 
@@ -145,6 +181,8 @@ async def listen_to_ws():
     global DEVICE_NAME
     global current_websocket
     global process_event
+    secret = read_secret()
+    wssToken = encode_jwt({"email": "wssClient@ggg.com"}, secret)
 
     uri = "ws://localhost:3001/wss/"
     uri = "wss://appvaldashboard.com/wss/"
@@ -169,22 +207,22 @@ async def listen_to_ws():
                             print(line_start, "using start command: ", start_cmd)
                             thread = threading.Thread(
                                 target=run_process,
-                                args=(start_cmd, )
+                                args=(start_cmd, wssToken, )
                             )
                             thread.start()
                             print(line_start, "Run started!")
-                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}", {}))
+                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}", {}, wssToken))
                         else:
                             print(line_start, "Run in progress!")
-                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}:runinprogress", {}))
+                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}:runinprogress", {}, wssToken))
                     elif message == f"querystatus_{DEVICE_NAME}":
                         status_msg =  "running" if process_event.is_set() else "stopped"
                         status = f"status:{DEVICE_NAME}:{status_msg}"
                         print(line_start, "Sending status: ", status)
-                        await websocket.send(ping(status, {}))
+                        await websocket.send(ping(status, {}, wssToken))
                     elif message == "getdevicename":
                         print(line_start, "Sending name: ", DEVICE_NAME)
-                        tts = ping(f"getdevicename:{DEVICE_NAME}", {"key": "value"})
+                        tts = ping(f"getdevicename:{DEVICE_NAME}", {"key": "value"}, wssToken)
                         print(line_start, "Sending name: ", tts, type(tts))
                         await websocket.send(tts)
 
@@ -193,7 +231,7 @@ async def listen_to_ws():
                         if process_event.is_set():  # Check if process is running
                             kill()
                             print(line_start, "Run stopped!")
-                            await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}))
+                            await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}, wssToken))
                     # elif not thread is None:
                     #     print(line_start, "We can print out the output from process here every 2s...", thread)
 
