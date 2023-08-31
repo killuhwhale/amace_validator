@@ -1,5 +1,7 @@
+import glob
 import os
 import subprocess
+from time import sleep
 from django.http import FileResponse
 from requests import HTTPError
 from google.oauth2.service_account import Credentials
@@ -21,7 +23,7 @@ from django.conf import settings
 from imageserver.yolov8 import YoloV8
 import os
 from imageserver.settings import BASE_DIR
-
+import zipfile
 from google.cloud import storage
 # Instantiates a client
 storage_client = storage.Client()
@@ -82,42 +84,45 @@ def installADB(tid, file_path):
     except Exception as err:
         print("Error installing: ", file_path, err)
         return False
-    
-def installMultipleADB(tid, file_path):
+
+def installMultiADB(tid, file_path):
+    proc= None
     try:
-        print(f"Attempting to install {file_path}")
-        cmd = ('unzip', '-o', file_path)
+        print(f"Attempting to install multi {file_path}")
+        apk_files = glob.glob(f"{file_path}.zip_extracted/*.apk")
+        cmd = ['adb', '-t', tid, "install-multiple", *apk_files]
+        print(f"Attempting to install multi {cmd}")
         outstr = subprocess.run(cmd, check=True, encoding='utf-8',
                                 capture_output=True).stdout.strip()
         print(outstr)
-
-        apkFiles = []
-        for file in os.listdir("."):
-            if file.endswith(".apk"):
-                print(file)
-                apkFiles.append(file)
-
-        print("Attempting install-multiple")
-        cmd = (['adb', 'install-multiple'] + apkFiles)
-        print(cmd)
-        outstr = subprocess.run(cmd, check=True, encoding='utf-8',
-                                capture_output=True).stdout.strip()
-        print(outstr)
-        
-        print("Attempting to remove apk files")
-        cmd = (['rm'] + apkFiles)
-        outstr = subprocess.run(cmd, check=True, encoding='utf-8',
-                                capture_output=True).stdout.strip()
-        print(outstr)
+        return True
+    except TypeError as err:
+        print("\n\n\n Error installing multiple: ", file_path, err, "\n\n\n")
+    except subprocess.CalledProcessError as err:
+        print("\n\n\n Error installing multiple: ", file_path, err.stderr, "\n\n\n")
     except Exception as err:
-        print("Error installing: ", file_path, err.output())
+        print("\n\n\n Error installing multiple: ", file_path, err, "\n\n\n")
         return False
 
+def extract_zip(file_path):
+    "Given a filepath ending in the package name of a APK, extract the file_path.zip into a folder named file_path.zip_extracted"
+    # Define the extraction directory
+    extract_dir = f"{file_path}.zip_extracted"
 
-def download_file_from_drive(file_id, output_path):
-    print("Downloading file from drive")
+    # Create the directory if it doesn't exist
+    if not os.path.exists(extract_dir):
+        os.makedirs(extract_dir)
+
+    # Extract the zip file
+    with zipfile.ZipFile(f"{file_path}.zip", 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+
+    print(f"Extracted {file_path}.zip to {extract_dir}")
+    remove_zip(file_path)
+
+def download_file_from_drive(file_id, output_path, ext):
     request = service.files().get_media(fileId=file_id)
-    with open(output_path, 'wb') as f:
+    with open(f"{output_path}.{ext}", 'wb') as f:
         downloader = MediaIoBaseDownload(f, request)
         done = False
         while done is False:
@@ -128,9 +133,23 @@ class ConnectADBViewSet(APIView):
 
     def post(self, req, pk=None):
         dutIP = req.data['dutIP']
+        kill_server = req.data['killServer']
         print(f"Dut {dutIP} asking to conect to ADB.... ")
         # adb connect dutIP
         try:
+            if kill_server == "kill":
+                cmd = ('adb', 'kill-server')
+                outstr = subprocess.run(cmd, check=True, encoding='utf-8',
+                                        capture_output=True).stdout.strip()
+                print(f"Killed server: {outstr}")
+                sleep(1)
+
+                cmd = ('adb', 'devices')
+                outstr = subprocess.run(cmd, check=True, encoding='utf-8',
+                                        capture_output=True).stdout.strip()
+                print(f"ADB devices: {outstr}")
+                sleep(1)
+
             cmd = ('adb', 'connect', dutIP)
             outstr = subprocess.run(cmd, check=True, encoding='utf-8',
                                     capture_output=True).stdout.strip()
@@ -139,12 +158,46 @@ class ConnectADBViewSet(APIView):
                 print(failed_msg)
                 return Response({"data": None, "error": failed_msg})
 
-            print(outstr)
+            print(f"Connected to ADB {outstr}")
             return Response({"data": outstr, "error": None})
         except Exception as err:
             print("Error connecting to ADB", err)
             return Response({"data": None, "error": f"Failed to connect to ADB {err}"})
         
+
+def remove_zip(file_path):
+    """
+    Removes the specified file from the filesystem.
+
+    Args:
+    - file_path (str): The path to the file to be removed.
+
+    Returns:
+    - True if the file was successfully removed, False otherwise.
+    """
+    try:
+        os.remove(f"{file_path}.zip")
+        return True
+    except Exception as e:
+        print(f"Error removing {file_path}: {e}")
+        return False
+
+def installByBlankFilePath(tid, file_path):
+
+    if os.path.exists(f"{file_path}.apk"):
+        print(" installADB:  ")
+        return installADB(tid, f"{file_path}.apk")
+
+    if os.path.exists(f"{file_path}.zip_extracted"):
+        print(" installMultiADB:  ")
+        return installMultiADB(tid, f"{file_path}")
+
+    if os.path.exists(f"{file_path}.zip"):
+        print("(extract_zip & installMultiADB:  ")
+        extract_zip(file_path)
+        return installMultiADB(tid, file_path)
+
+    print(f"Unable to install {file_path}, file not found on local server")
 
 class APKList(APIView):
 
@@ -161,13 +214,13 @@ class APKList(APIView):
             #print("Google drive response files: ", files)
             file_id = None
             for file in files:
-                file_names.append(file['name'] + "\t" + file['name'].split('-')[0])
-            print(file_names)
-            print(Response({"data": file_names, "error": None}))
-            return Response({"data": file_names, "error": None})
+                file_names.append(file['name'] + "\\t" + file['name'].split('-')[0])
+
+            escaped_package_names = "\\n".join(file_names)
+            print("Returning escaped packages: ", escaped_package_names)
+            return Response({"data": escaped_package_names, "error": None})
         except Exception as err:
             return Response({"data": None, "error": f"Failed to get list of packages from apks to check: {err}"})
-
 
 class PythonStoreViewSet(APIView):
 
@@ -177,10 +230,9 @@ class PythonStoreViewSet(APIView):
         pkg_name = req.data['pkgName']
         drive_url = req.data['driveURL']
         dutIP = req.data['dutIP']
-        # TODO() find transport id from ip dutIP
         tid = find_transport_id(dutIP)
-        print(f"DUT requested {file_name} from {drive_url}")
-        print("Drive URL ", drive_url)
+        print(f"DUT requested {pkg_name} from {drive_url}")
+
         try:
             # Assuming files are stored in a folder named 'files' in the server's directory
             print("Looking for file in folder ", APKFolder, "with pkg_name", file_name)
@@ -188,41 +240,35 @@ class PythonStoreViewSet(APIView):
             print(file_path)
 
             # Check if file exists on server
-            if not os.path.exists(file_path):
-                print("In if")
+            if not os.path.exists(f"{file_path}.apk") and not os.path.exists(f"{file_path}.zip_extracted"):
                 # If not, fetch from Google Drive and store on server
                 # Here, you'd need a way to determine the correct file ID based on package_name
                 # For now, I'm assuming file_id is passed but you may want to create a mapping
                 # or a database lookup to get the file ID based on the package_name
                 # folder_id = "1Lq_IdWlN9KOJT-h8dPiJsLFaRnHusg6e"
+                print("downloaing from google drive: ", pkg_name)
                 folder_id = drive_url
                 response = service.files().list(q=f"'{folder_id}' in parents").execute()
                 #print("Google drive response: ", response)
                 files = response.get('files', [])
                 #print("Google drive response files: ", files)
                 file_id = None
+                ext = ""
                 for file in files:
                     print(file)
                     # print("File in folder: ", file, file['name'])
                     if str(file['name']).startswith(pkg_name):
                         file_id = file['id']
-                        print("file_id " , file_id)
-                        print("file_name ", file['name'])
-                        #file_path = os.path.join(file_path, file['name'].split(".")[:-1])
-                        print("file_path ", file_path)
+                        ext = file['name'].split(".")[-1]
                         break
 
                 if file_id:
-                    download_file_from_drive(file_id, file_path)
+                    download_file_from_drive(file_id, file_path, ext)
                 else:
                     return Response({"data": None, "error": "File not found in Google Drive"})
 
-            if ".apk" in file_path:
-                if installADB(tid, file_path):
-                    return Response({"data": "Installed.", "error": None})
-            else:
-                if installMultipleADB(tid, file_path):
-                    return Response({"data": "Installed.", "error": None})
+            if installByBlankFilePath(tid, file_path):
+                return Response({"data": "Installed.", "error": None})
             return Response({"data": None, "error": f"Failed to install: {pkg_name}"})
         except Exception as err:
             print("Failed to get APK: ", err)

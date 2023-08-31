@@ -136,8 +136,10 @@ func AMACE(ctx context.Context, s *testing.State) {
 	s.Log("Device: ", device.Value())
 	s.Log("Start at: ", startat.Value())
 	s.Log("App creds: ", creds.Value())
-	s.Log("Install source: ", dSrcType.Value())
-	s.Log("Drive URL: ", driveURL.Value())
+	s.Log("skipLoggIn: ", skipLoggIn.Value())
+	s.Log("dSrcPath: ", dSrcPath.Value())
+	s.Log("dSrcType: ", dSrcType.Value())
+	s.Log("driveURL: ", driveURL.Value())
 	var ac amace.AppCreds
 	err := json.Unmarshal([]byte(creds.Value()), &ac)
 	if err != nil {
@@ -220,15 +222,20 @@ func AMACE(ctx context.Context, s *testing.State) {
 	defer keyboard.Close(ctx)
 
 	if dSrcType.Value() == "pythonstore" {
-		if err = AskToConnectADB(ctx, hostIP.Value(), device.Value()); err != nil {
+
+		if err = AskToConnectADB(ctx, hostIP.Value(), device.Value(), "kill"); err != nil {
 			testing.ContextLog(ctx, "Failed to ask for ADB connect!", err)
 		}
 		testing.ContextLog(ctx, "\n\n\n\n\n  Attempting to click ADB Allow: \n\n\n\n\n")
 		err = ConfirmADBUI(ctx, d)
 		testing.ContextLog(ctx, "Clicking ADB Allow: ", err)
 
-		// AcceptADBConnectUI()
-		// testing.Sleep(ctx, time.Second*30)
+		if err = AskToConnectADB(ctx, hostIP.Value(), device.Value(), "nah"); err != nil {
+			testing.ContextLog(ctx, "Failed to ask for ADB connect!", err)
+		}
+		testing.ContextLog(ctx, "\n\n\n\n\n  Attempting to click ADB Allow: \n\n\n\n\n")
+		err = ConfirmADBUI(ctx, d)
+		testing.ContextLog(ctx, "Clicking ADB Allow: ", err)
 	}
 
 	var arcWindow *ash.Window
@@ -252,10 +259,8 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("Error posting: ", err)
 		}
 		s.Log("Post res: ", res)
-	}*/
-
-	s.Log("###############################")
-
+	}
+	failedToInstall := false
 	for _, appPack := range testApps {
 		s.Log("appPack ", appPack)
 		// Reset Final logs
@@ -266,31 +271,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		crash = amace.ErrResult{}
 		// New App TS
 		appTS := time.Now().UnixMilli()
-
-		lastAppResults, err := amace.GetLatestAppResult(s, deviceInfo, appPack.Pname, secret, appResultURL.Value())
-		s.Log("Latest app results ", lastAppResults)
-		var data interface{}
-		e := json.Unmarshal([]byte(lastAppResults), &data)
-		if e != nil {
-			fmt.Printf("Failed to read the response body: %v\n", err)
-			continue
-		}
-		appVersion := ""
-		buildInfo := ""
-		if data.(map[string]interface{})["data"].(map[string]interface{})["data"] != nil {
-			values := data.(map[string]interface{})["data"].(map[string]interface{})["data"].(map[string]interface{})
-			appVersion = values["appVersion"].(string)
-			buildInfo = values["buildInfo"].(string)
-			if appVersion != "" {
-				appVersion = strings.Split(appVersion, " ")[1]
-			}
-			if buildInfo != "" {
-				buildInfo = strings.Split(buildInfo, " ")[0]
-			}
-		}
-		s.Log(appVersion)
-		s.Log(buildInfo)
-
+		failedToInstall = false
 		// Signals a new app run to python parent manage-program
 		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
 
@@ -306,17 +287,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 				testing.ContextLogf(ctx, "Failed to install app: %s , Status= %s, Error: %s", appPack.Pname, status, err)
 				// When an app is purchased an error is thrown but we dont want to report the error.. Instead continue with the rest of the check.
 				if status != amace.PURCHASED && status != amace.SKIPPEDAMACE {
-					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
-					res, err := amace.PostData(
-						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
-						s, postURL.Value(), buildInfo, secret, deviceInfo)
-					if err != nil {
-						s.Log("Error posting: ", err)
-
-					}
-					s.Log("Post res: ", res)
-
-					continue
+					failedToInstall = true
 				} else {
 					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "Purchased app.", runID.Value(), hostIP.Value(), false)
 				}
@@ -324,10 +295,22 @@ func AMACE(ctx context.Context, s *testing.State) {
 		} else if dSrcType.Value() == "pythonstore" {
 			// Make request to Server with package name
 			// Get file, maybe a curl right into a download/ install?
-			err := GetAPK(ctx, hostIP.Value(), appPack.Aname, appPack.Pname, driveURL.Value(), device.Value())
-			if err != nil {
-				continue
+			if GetAPK(ctx, hostIP.Value(), appPack.Pname, driveURL.Value(), device.Value()) != nil {
+				failedToInstall = true
 			}
+		}
+
+		if failedToInstall {
+			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
+			res, err := amace.PostData(
+				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs},
+				s, postURL.Value(), buildInfo, secret, deviceInfo)
+			if err != nil {
+				s.Log("Error posting: ", err)
+
+			}
+			s.Log("Post res: ", res)
+			continue
 		}
 
 		s.Log("App Installed", appPack)
@@ -534,7 +517,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		ar := amace.AppResult{}
 
 		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults}
-		s.Log("💥✅❌✅💥 App Result: ", ar)
+		s.Log("💥 ✅ ❌ ✅ 💥 App Result: ", ar)
 
 		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
 		if err != nil {
@@ -558,7 +541,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 func ConfirmADBUI(ctx context.Context, d *ui.Device) error {
 	allowText := d.Object(ui.TextMatches("Allow"))
-	if err := allowText.WaitForExists(ctx, time.Second*30); err != nil {
+	if err := allowText.WaitForExists(ctx, time.Second*5); err != nil {
 		testing.ContextLog(ctx, "Allow button not found: ", err)
 		return err
 	}
@@ -570,7 +553,7 @@ func ConfirmADBUI(ctx context.Context, d *ui.Device) error {
 
 // device.Value()
 // AskToConnectADB sends ip address to connect host device to DUT via ADB
-func AskToConnectADB(ctx context.Context, hostIP, dutIP string) error {
+func AskToConnectADB(ctx context.Context, hostIP, dutIP, killServer string) error {
 
 	testing.ContextLogf(ctx, "Host ip: %s => %s, ", hostIP, dutIP, driveURL)
 
@@ -578,7 +561,6 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP string) error {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
-	// Add the screenshot file
 	dutIPField, err := writer.CreateFormField("dutIP")
 	if err != nil {
 		return err
@@ -586,6 +568,16 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP string) error {
 
 	// Write the image data to the form file field
 	if _, err = dutIPField.Write([]byte(dutIP)); err != nil {
+		return err
+	}
+
+	killServerField, err := writer.CreateFormField("killServer")
+	if err != nil {
+		return err
+	}
+
+	// Write the image data to the form file field
+	if _, err = killServerField.Write([]byte(killServer)); err != nil {
 		return err
 	}
 
@@ -700,7 +692,10 @@ func GetAPK(ctx context.Context, hostIP, aName, pkgName, driveURL, dutIP string)
 	}
 
 	bodyString := string(bodyBytes)
-	testing.ContextLog(ctx, "Connect to ADB response: ", bodyString)
+	testing.ContextLog(ctx, "ADB install: ", bodyString)
+	if strings.Contains(bodyString, "Failed to install") {
+		return errors.New("Failed to install app!")
+	}
 
 	return nil
 }

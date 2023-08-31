@@ -57,4 +57,5 @@ mkdir -p $triggerDirectory
 
 cp ./wssClient.py $triggerDirectory/wssClient.py
 cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
+cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
 
