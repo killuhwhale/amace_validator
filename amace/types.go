@@ -157,6 +157,7 @@ type AppResult struct {
 	AppHistory   *AppHistory
 	Logs         string
 	LoginResults int8
+	DSrcPath     string
 }
 
 func (ar AppResult) String() string {

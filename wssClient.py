@@ -1,22 +1,32 @@
 import asyncio
 import json
+import sys
 import jwt
 import os
-import select
-import signal
 import subprocess
 import threading
 import time
 import websockets
 import psutil
 
-DEVICE_NAME = value = os.environ.get('DNAME')
 exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
-ip_address = "192.168.1.125"
-account = "tastarcplusplusappcompat14@gmail.com:1Z5-LT4Q1337"
 USER = os.environ.get("USER")
+DEVICE_NAME = os.environ.get('DNAME')
+account = os.environ.get("TASTACCOUNT")
+ip_address = "192.168.1.125"
+
+
+def req_env_var(value, name):
+    if value is None:
+        print(f"Env var: {name} not found, must enter env var: TASTACCOUNT")
+        sys.exit(1)
+
+
+req_env_var(DEVICE_NAME, "Device Name")
+req_env_var(account, "Tast Account")
+
 
 Red = "\033[31m"
 Black = "\033[30m"
@@ -61,6 +71,7 @@ def cmd(dsrcpath, dsrctype):
         "-d", ip_address,
         "-a", account,
         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
+        # "-u", "http://192.168.1.229:3000/api/amaceResult",
         "-l", "t",
         "--dsrcpath", f"AppLists/{dsrcpath}",
         "--dsrctype", dsrctype,
@@ -98,6 +109,7 @@ def run_process(cmd, wssToken):
 
     process_event.set()
     # Use Popen to start the process without blocking
+
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     while process.poll() is None:  # While the process is still running

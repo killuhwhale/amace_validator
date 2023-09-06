@@ -29,6 +29,7 @@ type requestBody struct {
 	AppHistory   *AppHistory     `json:"history"`
 	Logs         string          `json:"logs"`
 	LoginResults int8            `json:"loginResults"`
+	DSrcPath     string          `json:"dSrcPath"`
 }
 
 func PostData(appResult AppResult, s *testing.State, postURL, buildInfo, secret, deviceInfo string) (string, error) {
@@ -49,6 +50,7 @@ func PostData(appResult AppResult, s *testing.State, postURL, buildInfo, secret,
 		appResult.AppHistory,
 		appResult.Logs,
 		appResult.LoginResults,
+		appResult.DSrcPath,
 	}
 
 	// Convert the data to JSON
