@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -149,6 +150,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	cr := s.FixtValue().(*arc.PreData).Chrome
 	d := s.FixtValue().(*arc.PreData).UIDevice
 	ax.ARC.ReadFile(ctx, "")
+	RunTS, err := strconv.ParseInt(runTS.Value(), 10, 64)
 
 	ctx, cancel := ctxutil.Shorten(ctx, 5*time.Second)
 	defer cancel()
@@ -245,7 +247,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	if skipLoggIn.Value() != "t" {
 		fbPreLoggedIn = amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
 		testing.ContextLog(ctx, "Pre login facebook result: ", fbPreLoggedIn)
-		ar = amace.AppResult{App: amace.AppPackage{Pname: "com.facebook.katana.prelogin", Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, LoginResults: 10, DSrcPath: dSrcPath.Value()}
+		ar = amace.AppResult{App: amace.AppPackage{Pname: "com.facebook.katana.prelogin", Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: RunTS, AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, LoginResults: 10, DSrcPath: dSrcPath.Value()}
 		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
 		if err != nil {
 			s.Log("Error posting: ", err)
@@ -265,7 +267,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		appTS := time.Now().UnixMilli()
 		failedToInstall = false
 		// Signals a new app run to python parent manage-program
-		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
+		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), RunTS, appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
 
 		// ####################################
 		// ####   Install APP           #######
@@ -296,7 +298,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			testing.ContextLogf(ctx, "failedToInstall appz: %s , Status= %s", appPack.Pname, status)
 			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
 			res, err := amace.PostData(
-				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 				s, postURL.Value(), buildInfo, secret, deviceInfo)
 			if err != nil {
 				s.Log("Error posting: ", err)
@@ -333,7 +335,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to launch.", runID.Value(), hostIP.Value(), false)
 
 				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 					s, postURL.Value(), buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -371,7 +373,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 				finalLogs = amace.GetFinalLogs(crash)
 				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 					s, postURL.Value(), buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -403,7 +405,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			if err != nil {
 				s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
 				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 					s, postURL.Value(), buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -443,7 +445,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", runID.Value(), hostIP.Value(), false)
 				res, err := amace.PostData(
-					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 					s, postURL.Value(), buildInfo, secret, deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
@@ -467,7 +469,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 					testing.ContextLog(ctx, "App HAS black screen: ")
 					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App crashed with black screen.", runID.Value(), hostIP.Value(), false)
 					res, err := amace.PostData(
-						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
+						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 						s, postURL.Value(), buildInfo, secret, deviceInfo)
 					if err != nil {
 						s.Log("Error posting: ", err)
@@ -507,7 +509,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// ####   Post APP Results      #######
 		// ####################################
 		// // Create result and post
-		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: runTS.Value(), AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults, DSrcPath: dSrcPath.Value()}
+		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults, DSrcPath: dSrcPath.Value()}
 		s.Log("💥 ✅ ❌ ✅ 💥 App Result: ", ar)
 		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
 		if err != nil {

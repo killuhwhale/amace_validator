@@ -16,7 +16,12 @@ USER = os.environ.get("USER")
 DEVICE_NAME = os.environ.get('DNAME')
 account = os.environ.get("TASTACCOUNT")
 ip_address = "192.168.1.125"
+ip_address = "192.168.1.128"
+devices = ["192.168.1.128"]
 
+
+def make_device_args(ips):
+    return ["-d", " ".join(ips)]
 
 def req_env_var(value, name):
     if value is None:
@@ -28,17 +33,17 @@ req_env_var(DEVICE_NAME, "Device Name")
 req_env_var(account, "Tast Account")
 
 
-Red = "\033[31m"
-Black = "\033[30m"
-Green = "\033[32m"
-Yellow = "\033[33m"
-Blue = "\033[34m"
-Purple = "\033[35m"
-Cyan = "\033[36m"
-White = "\033[37m"
-RESET = "\033[0m"
+Red     = "\033[31m"
+Black   = "\033[30m"
+Green   = "\033[32m"
+Yellow  = "\033[33m"
+Blue    = "\033[34m"
+Purple  = "\033[35m"
+Cyan    = "\033[36m"
+White   = "\033[37m"
+RESET   = "\033[0m"
 
-line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET}"
+line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET} "
 
 cwd = os.getcwd()
 
@@ -64,18 +69,17 @@ def encode_jwt(payload, secret, algorithm='HS512'):
     return encoded_jwt
 
 
-def cmd(dsrcpath, dsrctype):
+def cmd(devices, dsrcpath, dsrctype):
     return [
         "python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
-        "-d", ip_address,
         "-a", account,
         "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
-        # "-u", "http://192.168.1.229:3000/api/amaceResult",
+        "-u", "http://192.168.1.229:3000/api/amaceResult",
         "-l", "t",
         "--dsrcpath", f"AppLists/{dsrcpath}",
         "--dsrctype", dsrctype,
-    ]
+    ] + make_device_args(devices)
 
 def get_d_src_type(playstore: bool):
     return "playstore" if playstore else "pythonstore"
@@ -193,6 +197,7 @@ async def listen_to_ws():
     global DEVICE_NAME
     global current_websocket
     global process_event
+    global devices
     secret = read_secret()
     wssToken = encode_jwt({"email": "wssClient@ggg.com"}, secret)
 
@@ -213,7 +218,7 @@ async def listen_to_ws():
                         # Check if the process is not already running
                         if not process_event.is_set():
 
-                            start_cmd = cmd(
+                            start_cmd = cmd(devices,
                                         data['listname'],
                                         get_d_src_type(data['playstore']))
                             print(line_start, "using start command: ", start_cmd)

@@ -26,15 +26,15 @@ import requests
 USER = os.environ.get("USER")
 chroot_data_path = f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data"
 
-Red = "\033[31m "
-Black = "\033[30m "
-Green = "\033[32m "
-Yellow = "\033[33m "
-Blue = "\033[34m "
-Purple = "\033[35m "
-Cyan = "\033[36m "
-White = "\033[37m "
-RESET = "\033[0m "
+Red = "\033[31m"
+Black = "\033[30m"
+Green = "\033[32m"
+Yellow = "\033[33m"
+Blue = "\033[34m"
+Purple = "\033[35m"
+Cyan = "\033[36m"
+White = "\033[37m"
+RESET = "\033[0m"
 
 def p_red(*args, end='\n'):
     print(Red, *args, RESET, end=end)

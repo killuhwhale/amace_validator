@@ -148,7 +148,7 @@ func (as AppStatus) String() string {
 type AppResult struct {
 	App          AppPackage
 	RunID        string
-	RunTS        string
+	RunTS        int64
 	AppTS        int64
 	Status       AppStatus
 	BrokenStatus AppBrokenStatus

@@ -20,7 +20,7 @@ type requestBody struct {
 	AppName      string          `json:"appName"`
 	PkgName      string          `json:"pkgName"`
 	RunID        string          `json:"runID"`
-	RunTS        string          `json:"runTS"`
+	RunTS        int64           `json:"runTS"`
 	AppTS        int64           `json:"appTS"`
 	Status       AppStatus       `json:"status"`
 	BrokenStatus AppBrokenStatus `json:"brokenStatus"`
