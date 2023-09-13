@@ -202,8 +202,8 @@ async def listen_to_ws():
     print("Using secret: ", secret)
     wssToken = encode_jwt({"email": "wssClient@ggg.com"}, secret)
 
-    uri = "wss://appvaldashboard.com/wss/"
     uri = "ws://localhost:3001/wss/"
+    uri = "wss://appvaldashboard.com/wss/"
     print(line_start, f"Device: {DEVICE_NAME} is using URI: ", uri)
     while True:
         try:
