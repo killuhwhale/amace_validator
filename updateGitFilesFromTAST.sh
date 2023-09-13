@@ -38,5 +38,6 @@ cp $directory/amace.py ./amace.py
 
 
 cp  $triggerDirectory/wssClient.py  ./wssClient.py
+cp  $triggerDirectory/wssUpdater.py ./wssUpdater.py
 cp  $triggerDirectory/wssReqs.txt   ./wssReqs.txt
 

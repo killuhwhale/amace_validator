@@ -21,7 +21,7 @@ fi
 
 # Helper Scripts
 # cp ./startCROS.sh /home/${USER}    # Starts Chroot
-cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
+# cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
 
 
 # Helper Functions
@@ -56,6 +56,7 @@ cp ./amace.py $directory/amace.py
 mkdir -p $triggerDirectory
 
 cp ./wssClient.py $triggerDirectory/wssClient.py
+cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
 cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
 
