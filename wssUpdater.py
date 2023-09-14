@@ -157,9 +157,11 @@ async def listen_to_ws():
                     message = mping['msg']
                     data = mping['data']
 
+                    if not message.startswith("progress"):
+                        print(line_start, f"Received message: {message} ")
+
                     if message == f"update_{DEVICE_NAME}":
                         # Check if the process is not already running
-                        print(line_start, f"Updating....")
                         if not process_event.is_set():
 
                             start_cmd = cmd()
@@ -175,10 +177,10 @@ async def listen_to_ws():
                             print(line_start, "Update in progress!")
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
 
-                    elif message == f"stoprun_{DEVICE_NAME}":
+                    elif message.startswith("stoprun_") :
                         print(line_start, "Run stopping call restart wssClient.service....")
                         restart_wssClient_service(password)
-                        await websocket.send(ping(f"runstopped:{DEVICE_NAME}:updater", {}, wssToken))
+                        await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
 
         except websockets.ConnectionClosed:
             print(line_start, "Connection with the server was closed. Retrying in 5 seconds...")
