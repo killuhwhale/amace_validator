@@ -157,13 +157,12 @@ async def listen_to_ws():
                     message = mping['msg']
                     data = mping['data']
 
-                    if not message.startswith("progress"):
+                    if not message.startswith("progress:"):
                         print(line_start, f"Received message: {message} ")
 
                     if message == f"update_{DEVICE_NAME}":
                         # Check if the process is not already running
                         if not process_event.is_set():
-
                             start_cmd = cmd()
                             print(line_start, "using start command: ", start_cmd)
                             thread = threading.Thread(
@@ -176,7 +175,6 @@ async def listen_to_ws():
                         else:
                             print(line_start, "Update in progress!")
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
-
                     elif message.startswith("stoprun_") :
                         print(line_start, "Run stopping call restart wssClient.service....")
                         restart_wssClient_service(password)
