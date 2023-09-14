@@ -40,7 +40,7 @@ RESET   = "\033[0m"
 
 line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET} "
 
-cwd = os.getcwd()
+cwd = "/home/appval002/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
 
 def read_secret():
     secret = ""
