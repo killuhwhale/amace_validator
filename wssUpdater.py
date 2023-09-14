@@ -14,7 +14,7 @@ process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
 USER = os.environ.get("USER")
 DEVICE_NAME = os.environ.get('DNAME')
-devices = ["192.168.1.128"]
+devices = ["192.168.1.125"]
 
 
 def req_env_var(value, name):

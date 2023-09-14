@@ -15,9 +15,7 @@ current_websocket = None  # Global variable to hold the current WebSocket
 USER = os.environ.get("USER")
 DEVICE_NAME = os.environ.get('DNAME')
 account = os.environ.get("TASTACCOUNT")
-ip_address = "192.168.1.125"
-ip_address = "192.168.1.128"
-devices = ["192.168.1.128"]
+devices = ["192.168.1.125"]
 
 
 def make_device_args(ips):
