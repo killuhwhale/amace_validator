@@ -19,14 +19,14 @@ DEVICE_NAME = os.environ.get('DNAME')
 devices = ["192.168.1.125"]
 password = os.environ.get("SUDO_PASSWORD")
 
-def req_env_var(value, name):
+def req_env_var(value, name, env_var):
     if value is None:
-        print(f"Env var: {name} not found, must enter env var: TASTACCOUNT")
+        print(f"Env var: {name} not found, must enter env var: {env_var}")
         sys.exit(1)
 
 
-req_env_var(DEVICE_NAME, "Device Name")
-req_env_var(password, "Host device password. E.g: appval002's password")
+req_env_var(DEVICE_NAME, "Device Name", "DEVICE_NAME")
+req_env_var(password, "Host device password. E.g: appval002's password", 'SUDO_PASSWORD')
 
 
 Red     = "\033[31m"
@@ -156,9 +156,10 @@ async def listen_to_ws():
                     mping = pj(await websocket.recv())
                     message = mping['msg']
                     data = mping['data']
-                    print(line_start, f"Received message: {message} ")
+
                     if message == f"update_{DEVICE_NAME}":
                         # Check if the process is not already running
+                        print(line_start, f"Updating....")
                         if not process_event.is_set():
 
                             start_cmd = cmd()
@@ -177,7 +178,7 @@ async def listen_to_ws():
                     elif message == f"stoprun_{DEVICE_NAME}":
                         print(line_start, "Run stopping call restart wssClient.service....")
                         restart_wssClient_service(password)
-                        await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
+                        await websocket.send(ping(f"runstopped:{DEVICE_NAME}:updater", {}, wssToken))
 
         except websockets.ConnectionClosed:
             print(line_start, "Connection with the server was closed. Retrying in 5 seconds...")

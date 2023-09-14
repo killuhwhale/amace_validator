@@ -9,8 +9,8 @@ import time
 import websockets
 import psutil
 from dotenv import load_dotenv
-load_dotenv()
 
+load_dotenv()
 exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
@@ -23,14 +23,14 @@ devices = ["192.168.1.125"]
 def make_device_args(ips):
     return ["-d", " ".join(ips)]
 
-def req_env_var(value, name):
+def req_env_var(value, name, env_var):
     if value is None:
-        print(f"Env var: {name} not found, must enter env var: TASTACCOUNT")
+        print(f"Env var: {name} not found, must enter env var: {env_var}")
         sys.exit(1)
 
 
-req_env_var(DEVICE_NAME, "Device Name")
-req_env_var(account, "Tast Account")
+req_env_var(DEVICE_NAME, "Device Name", 'DEVICE_NAME')
+req_env_var(account, "Tast Account", 'account')
 
 
 Red     = "\033[31m"
