@@ -8,7 +8,9 @@ import threading
 import time
 import websockets
 import psutil
+from dotenv import load_dotenv
 
+load_dotenv()
 exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
