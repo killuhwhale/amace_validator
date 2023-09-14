@@ -17,7 +17,7 @@ current_websocket = None  # Global variable to hold the current WebSocket
 USER = os.environ.get("USER")
 DEVICE_NAME = os.environ.get('DNAME')
 devices = ["192.168.1.125"]
-
+password = os.environ.get("SUDO_PASSWORD")
 
 def req_env_var(value, name):
     if value is None:
@@ -26,6 +26,7 @@ def req_env_var(value, name):
 
 
 req_env_var(DEVICE_NAME, "Device Name")
+req_env_var(password, "Host device password. E.g: appval002's password")
 
 
 Red     = "\033[31m"
@@ -128,10 +129,15 @@ def run_process(cmd, wssToken):
         asyncio.run(current_websocket.send(ping("Process completed!", {}, wssToken)))
 
 
+# Called to "stop" the
+def restart_wssClient_service(pswd):
+    result = subprocess.run([ "echo", pswd, "|", 'sudo', "-S", "systemctl", "restart", "wssClient.service"], capture_output=True, text=True)
+    print("restart_wssClient_service: ", result)
 
 async def listen_to_ws():
     global cmd
     global DEVICE_NAME
+    global password
     global current_websocket
     global process_event
     global devices
@@ -167,6 +173,11 @@ async def listen_to_ws():
                         else:
                             print(line_start, "Update in progress!")
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
+
+                    elif message == f"stoprun_{DEVICE_NAME}":
+                        print(line_start, "Run stopping call restart wssClient.service....")
+                        restart_wssClient_service(password)
+                        await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
 
         except websockets.ConnectionClosed:
             print(line_start, "Connection with the server was closed. Retrying in 5 seconds...")
