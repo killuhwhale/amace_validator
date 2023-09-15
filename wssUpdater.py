@@ -189,6 +189,7 @@ async def listen_to_ws():
 
 if __name__ == "__main__":
     # Run the program using an asyncio event loop
+    print("wssUpdater.py starting...")
     loop = asyncio.get_event_loop()
     loop.run_until_complete(listen_to_ws())
     loop.run_forever()
