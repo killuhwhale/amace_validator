@@ -184,7 +184,7 @@ async def listen_to_ws():
                         else:
                             print(line_start, "Update in progress!")
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
-                    elif message.startswith("stoprun_"):
+                    elif message.startswith(f"stoprun_{DEVICE_NAME}"):
                         print(line_start, "Run stopping call restart wssClient.service....")
                         restart_wssClient_service(password)
                         await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
