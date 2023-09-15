@@ -244,12 +244,13 @@ async def listen_to_ws():
                         print(line_start, "Sending name: ", tts, type(tts))
                         await websocket.send(tts)
 
-                    elif message == f"stoprun_{DEVICE_NAME}":
-                        print(line_start, "Run stopping....")
-                        if process_event.is_set():  # Check if process is running
-                            kill()
-                            print(line_start, "Run stopped!")
-                            await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}, wssToken))
+                    # Deprecated, we now restart a service to stop the current run from wssUpdater.py
+                    # elif message == f"stoprun_{DEVICE_NAME}":
+                    #     print(line_start, "Run stopping....")
+                    #     if process_event.is_set():  # Check if process is running
+                    #         kill()
+                    #         print(line_start, "Run stopped!")
+                    #         await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}, wssToken))
                     # elif not thread is None:
                     #     print(line_start, "We can print out the output from process here every 2s...", thread)
 
