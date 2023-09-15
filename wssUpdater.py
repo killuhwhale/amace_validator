@@ -131,11 +131,17 @@ def run_process(cmd, wssToken):
 
 # Called to "stop" the
 def restart_wssClient_service(pswd):
-    result = subprocess.run([ "echo", pswd, "|", 'sudo', "-S", "systemctl", "restart", "wssClient.service"], capture_output=True, text=True)
+    # result = subprocess.run([ "echo", pswd, "|", 'sudo', "-S", "systemctl", "restart", "wssClient.service"], capture_output=True, text=True)
+    cmd = ['sudo', '-S', 'systemctl', 'restart', 'wssClient.service']
+
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout, stderr = proc.communicate(input=pswd + '\n')
 
     print("restart_wssClient_service: ")
     print("stdout: ", result.stdout)
     print("stderr: ", result.stderr)
+    print("stdout: ", stdout)
+    print("stderr: ", stderr)
 
 async def listen_to_ws():
     global cmd
@@ -178,7 +184,7 @@ async def listen_to_ws():
                         else:
                             print(line_start, "Update in progress!")
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
-                    elif message.startswith("stoprun_") :
+                    elif message.startswith("stoprun_"):
                         print(line_start, "Run stopping call restart wssClient.service....")
                         restart_wssClient_service(password)
                         await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
