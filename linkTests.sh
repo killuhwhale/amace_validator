@@ -56,8 +56,8 @@ cp ./amace.py $directory/amace.py
 mkdir -p $triggerDirectory
 
 cp ./wssClient.py $triggerDirectory/wssClient.py
-cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./updateRemoteDevice.sh $triggerDirectory/updateRemoteDevice.sh
 cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
 cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
+# cp ./wssUpdater.py $triggerDirectory/wssUpdater.py # Update this script manually when needed. Not intended to update remotely.
 

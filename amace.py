@@ -443,7 +443,7 @@ if __name__ == "__main__":
     dsrctype=ags.dsrctype
 
     host_ip = get_local_ip()
-    print(f"\n\nCLI args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
+    print(f"\n\nCLIent args: {url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
     # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
 
     ips = [d for d in ags.device.split(" ") if d]
