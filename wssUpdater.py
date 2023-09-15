@@ -132,7 +132,10 @@ def run_process(cmd, wssToken):
 # Called to "stop" the
 def restart_wssClient_service(pswd):
     result = subprocess.run([ "echo", pswd, "|", 'sudo', "-S", "systemctl", "restart", "wssClient.service"], capture_output=True, text=True)
-    print("restart_wssClient_service: ", result)
+
+    print("restart_wssClient_service: ")
+    print("stdout: ", result.stdout)
+    print("stderr: ", result.stderr)
 
 async def listen_to_ws():
     global cmd
