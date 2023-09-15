@@ -4,8 +4,9 @@ echo "Current at ${lastdir}"
 echo "cd /home/appval002/amace_validator; git pull; bash linkTests.sh;"
 cd /home/appval002/amace_validator
 git pull
-sleep 10000
+sleep 10
 bash linkTests.sh
-sleep 1000
+sleep 10
 cd ${lastdir}
+echo "Done updating"
 
