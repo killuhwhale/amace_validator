@@ -138,8 +138,8 @@ def restart_wssClient_service(pswd):
     stdout, stderr = proc.communicate(input=pswd + '\n')
 
     print("restart_wssClient_service: ")
-    print("stdout: ", result.stdout)
-    print("stderr: ", result.stderr)
+    print("stdout: ", proc.stdout)
+    print("stderr: ", proc.stderr)
     print("stdout: ", stdout)
     print("stderr: ", stderr)
 
