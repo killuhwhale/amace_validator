@@ -11,7 +11,7 @@ import psutil
 from dotenv import load_dotenv
 
 load_dotenv()
-exit_signal = threading.Event()
+# exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
 USER = os.environ.get("USER")
@@ -41,7 +41,7 @@ RESET   = "\033[0m"
 
 line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET} "
 
-cwd = "/home/appval002/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
+cwd = f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
 
 def read_secret():
     secret = ""
@@ -76,8 +76,8 @@ def pj(s: str):
     # parse json
     return json.loads(s)
 
-def kill():
-    exit_signal.set()
+# def kill():
+#     exit_signal.set()
 
 def kill_proc_tree(pid, including_parent=True):
     print(line_start, "kill proc tree")
@@ -94,7 +94,7 @@ def kill_proc_tree(pid, including_parent=True):
 def run_process(cmd, wssToken):
     global process_event
     global current_websocket
-    global exit_signal
+    # global exit_signal
 
     process_event.set()
     # Use Popen to start the process without blocking
@@ -102,10 +102,10 @@ def run_process(cmd, wssToken):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     while process.poll() is None:  # While the process is still running
-        if exit_signal.is_set():  # Check if exit signal is set
-            print(line_start, "TERMINATING PROCESS")
-            kill_proc_tree(process.pid)
-            break
+        # if exit_signal.is_set():  # Check if exit signal is set
+        #     print(line_start, "TERMINATING PROCESS")
+        #     kill_proc_tree(process.pid)
+        #     break
         output = ""
         try:
             # output = process.stdout.readline().decode("utf-8").strip("\n")
@@ -121,7 +121,7 @@ def run_process(cmd, wssToken):
         time.sleep(.1)  # Sleep for a short duration before checking again
 
     process_event.clear()
-    exit_signal.clear()
+    # exit_signal.clear()
 
     # Send a message over the websocket after the process completes
     if current_websocket:
@@ -129,9 +129,8 @@ def run_process(cmd, wssToken):
         asyncio.run(current_websocket.send(ping("Process completed!", {}, wssToken)))
 
 
-# Called to "stop" the
+# Called to "stop" the wssClient.service when user presses "Stop Run"
 def restart_wssClient_service(pswd):
-    # result = subprocess.run([ "echo", pswd, "|", 'sudo', "-S", "systemctl", "restart", "wssClient.service"], capture_output=True, text=True)
     cmd = ['sudo', '-S', 'systemctl', 'restart', 'wssClient.service']
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -143,6 +142,7 @@ def restart_wssClient_service(pswd):
     print("stdout: ", stdout)
     print("stderr: ", stderr)
 
+
 async def listen_to_ws():
     global cmd
     global DEVICE_NAME
@@ -153,8 +153,8 @@ async def listen_to_ws():
     secret = read_secret()
     wssToken = encode_jwt({"email": "wssUpdater@ggg.com"}, secret)
 
-    uri = "ws://localhost:3001/wss/"
     uri = "wss://appvaldashboard.com/wss/"
+    uri = "ws://localhost:3001/wss/"
     print(line_start, f"Device: {DEVICE_NAME} is using URI: ", uri)
     while True:
         try:
