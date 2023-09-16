@@ -17,11 +17,11 @@ current_websocket = None  # Global variable to hold the current WebSocket
 USER = os.environ.get("USER")
 DEVICE_NAME = os.environ.get('DNAME')
 account = os.environ.get("TASTACCOUNT")
-devices = ["192.168.1.125"]
+# devices = ["192.168.1.125"]
 
 
 def make_device_args(ips):
-    return ["-d", " ".join(ips)]
+    return ["-d", ips]
 
 def req_env_var(value, name, env_var):
     if value is None:
@@ -197,7 +197,7 @@ async def listen_to_ws():
     global DEVICE_NAME
     global current_websocket
     global process_event
-    global devices
+    # global devices
     secret = read_secret()
     print("Using secret: ", secret)
     wssToken = encode_jwt({"email": "wssClient@ggg.com"}, secret)
@@ -219,7 +219,8 @@ async def listen_to_ws():
                         # Check if the process is not already running
                         if not process_event.is_set():
 
-                            start_cmd = cmd(devices,
+                            start_cmd = cmd(
+                                        data['devices'],
                                         data['listname'],
                                         get_d_src_type(data['playstore']))
                             print(line_start, "using start command: ", start_cmd)
