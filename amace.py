@@ -451,7 +451,8 @@ if __name__ == "__main__":
     ips = [d for d in ags.device.split(" ") if d]
     secret = read_secret(secret_path)
     # TODO, PIPE THIS DOWN TO AMACE.GO
-    driveURL = load_apps(host_ip, secret, dsrcpath,  dsrctype)
+    #driveURL = load_apps(host_ip, secret, dsrcpath,  dsrctype)
+    driveURL = ""
     creds = fetch_app_creds(secret)
 
 

@@ -259,7 +259,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			s.Log("Error posting: ", err)
 		}
 		s.Log("Post res: ", res)
-	}
+	}*/
 	failedToInstall := false
 	for _, appPack := range testApps {
 		s.Log("appPack ", appPack)
@@ -272,6 +272,37 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// New App TS
 		appTS := time.Now().UnixMilli()
 		failedToInstall = false
+
+		lastAppResults, err := amace.GetLatestAppResult(s, deviceInfo, appPack.Pname, secret, appResultURL.Value())
+		s.Log("Latest app results ", lastAppResults)
+		var data interface{}
+		e := json.Unmarshal([]byte(lastAppResults), &data)
+		if e != nil {
+			fmt.Printf("Failed to read the response body: %v\n", err)
+			continue
+		}
+		appVersion := ""
+		deviceBuild := ""
+		values := data.(map[string]interface{})["data"].(map[string]interface{})["data"].(map[string]interface{})
+		if data.(map[string]interface{})["data"].(map[string]interface{})["data"] != nil {
+			values = data.(map[string]interface{})["data"].(map[string]interface{})["data"].(map[string]interface{})
+			appVersion = values["appVersion"].(string)
+			deviceBuild = values["buildInfo"].(string)
+			if appVersion != "" {
+				appVersion = strings.Split(appVersion, " ")[1]
+			}
+			if deviceBuild != "" {
+				deviceBuild = strings.Split(deviceBuild, " ")[0]
+			}
+		}
+		s.Log("App Version: ", appVersion)
+		s.Log("Device Build: ", deviceBuild)
+
+		if deviceBuild == strings.Split(buildInfo, " ")[0] {
+			s.Log("Values: ", values)
+			continue
+		}
+
 		// Signals a new app run to python parent manage-program
 		s.Logf("--appstart@|~|%s|~|%s|~|%s|~|%s|~|%d|~|%v|~|%d|~|%s|~|%s|~|", runID.Value(), runTS.Value(), appPack.Pname, appPack.Aname, 0, false, appTS, buildInfo, deviceInfo)
 
@@ -295,7 +326,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		} else if dSrcType.Value() == "pythonstore" {
 			// Make request to Server with package name
 			// Get file, maybe a curl right into a download/ install?
-			if GetAPK(ctx, hostIP.Value(), appPack.Pname, driveURL.Value(), device.Value()) != nil {
+			if GetAPK(ctx, hostIP.Value(), appPack.Aname, appPack.Pname, driveURL.Value(), device.Value()) != nil {
 				failedToInstall = true
 			}
 		}
