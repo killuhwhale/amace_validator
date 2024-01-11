@@ -7,7 +7,6 @@ package amace
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"go.chromium.org/tast/core/testing"
@@ -19,33 +18,13 @@ type AppPackage struct {
 	Aname string // launch app name
 }
 
-// LoadSecret secret from file to post to backend
-func LoadSecret(s *testing.State) (string, error) {
-	b, err := ioutil.ReadFile(s.DataPath("AMACE_secret.txt"))
-	if err != nil {
-		fmt.Println("Error:", err)
-		return "", err
-	}
-	return string(b), nil
-}
-
 // LoadAppList loads list to use to check status of AMAC-E
-func LoadAppList(s *testing.State, startat string) ([]AppPackage, error) {
+func LoadAppList(s *testing.State, appString, startat string) ([]AppPackage, error) {
 	idx := 0
+	s.Logf("LoadAppList: content for app list: %s", appString)
 
-	b, err := ioutil.ReadFile(s.DataPath("AMACE_app_list.tsv"))
-	if err != nil {
-		fmt.Println("Error:", err)
-		return nil, err
-	}
-
-	// Convert file content to string
-	fileContent := string(b)
-
-	// Print the file content
-	// fmt.Println(fileContent)
 	var pgks []AppPackage
-	lines := strings.Split(fileContent, "\n")
+	lines := strings.Split(appString, "\n")
 	s.Log("Startat param: ", startat)
 	// Split each line by tabs
 	for lineIdx, line := range lines {

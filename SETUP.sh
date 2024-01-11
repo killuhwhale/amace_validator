@@ -6,7 +6,7 @@ sudo systemctl start imageserver.service
 sudo systemctl enable imageserver.service
 
 
-# Copy files to TAST
+# Copy files from Repo to TAST and WSS clients' directories
 bash linkTests.sh
 
 # Enter Chroot

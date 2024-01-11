@@ -29,6 +29,6 @@ urlpatterns = [
     path("email/", views.EmailViewSet.as_view()),
     path("pythonstore/", views.PythonStoreViewSet.as_view()),
     path("connectADB/", views.ConnectADBViewSet.as_view()),
-    path("apklist/", views.APKList.as_view())
+    # path("apklist/", views.APKList.as_view())
     # path("admin/", admin.site.urls),
 ]

@@ -1,37 +1,46 @@
+import os
 import glob
 import os
 import subprocess
+import zipfile
 from time import sleep
-from django.http import FileResponse
-from requests import HTTPError
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets
 from PIL import Image
-import smtplib
 from googleapiclient.http import MediaIoBaseDownload
-from rest_framework.decorators import action
-# Import the email modules we'll need
-from email.message import EmailMessage
-
-from imageserver.settings import env
-
 from django.core.mail import send_mail
 from django.conf import settings
-from imageserver.yolov8 import YoloV8
-import os
-from imageserver.settings import BASE_DIR
-import zipfile
-from google.cloud import storage
-# Instantiates a client
-storage_client = storage.Client()
 
+from imageserver.yolov8 import YoloV8
+from imageserver.settings import BASE_DIR, CONFIG
+from google.cloud import storage
+
+'''
+Google APIs
+  - Manage files in Drive
+  - Upload screenshots to Storage
+'''
+# GOOGLE_APPLICATION_CREDENTIALS_IMAGE_SERVER_STORAGESERVICEACCOUNTKEY
+
+# Instantiates a client
 # Set up Google Drive service
-creds = Credentials.from_service_account_file(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+creds = Credentials.from_service_account_info(CONFIG['GOOGLE_APPLICATION_CREDENTIALS_IMAGE_SERVER_STORAGESERVICEACCOUNTKEY'],
                                               scopes=['https://www.googleapis.com/auth/drive.readonly'])
 service = build('drive', 'v3', credentials=creds)
+
+# Set up Google Cloud Storage service
+storage_client = storage.Client()
+
+# Get all environment variables
+def print_env():
+    print(f"Current env vars: ")
+    # Print all environment variables
+    for key, value in os.environ.items():
+        print(f'{key}: {value}')
+
 
 APKFolder = f'{BASE_DIR}/files'
 os.makedirs(APKFolder, exist_ok=True)
@@ -198,41 +207,49 @@ def installByBlankFilePath(tid, file_path):
 
     print(f"Unable to install {file_path}, file not found on local server")
 
-class APKList(APIView):
 
-    def get(self, req, format=None):
-        print(req)
-        drive_url = req.data['driveURL']
-        print("Drive URL ", drive_url)
 
-        try:
-            file_names = []
-            response = service.files().list(q=f"'{drive_url}' in parents").execute()
-            #print("Google drive response: ", response)
-            files = response.get('files', [])
-            #print("Google drive response files: ", files)
-            file_id = None
-            for file in files:
-                file_names.append(file['name'] + "\\t" + file['name'].split('-')[0])
 
-            escaped_package_names = "\\n".join(file_names)
-            print("Returning escaped packages: ", escaped_package_names)
-            return Response({"data": escaped_package_names, "error": None})
-        except Exception as err:
-            return Response({"data": None, "error": f"Failed to get list of packages from apks to check: {err}"})
+"""
+I dont think we need this, we are going to make a list anyways in firebase. We should not need to list it before hand...
+"""
+# class APKList(APIView):
+
+#     def get(self, req, format=None):
+#         print(req)
+#         drive_url = req.data['driveURL']
+#         print("Drive URL ", drive_url)
+
+#         try:
+#             file_names = []
+#             response = service.files().list(q=f"'{drive_url}' in parents").execute()
+#             #print("Google drive response: ", response)
+#             files = response.get('files', [])
+#             #print("Google drive response files: ", files)
+#             file_id = None
+#             for file in files:
+#                 file_names.append(file['name'] + "\\t" + file['name'].split('-')[0])
+
+#             escaped_package_names = "\\n".join(file_names)
+#             print("Returning escaped packages: ", escaped_package_names)
+#             return Response({"data": escaped_package_names, "error": None})
+#         except Exception as err:
+#             return Response({"data": None, "error": f"Failed to get list of packages from apks to check: {err}"})
 
 class PythonStoreViewSet(APIView):
 
     def post(self, req, format=None):
+        print("PythonStoreViewSet: ", req.data)
         pkg_name = req.data['pkgName']
+        file_name = req.data['fileName']
         drive_url = req.data['driveURL']
         dutIP = req.data['dutIP']
         tid = find_transport_id(dutIP)
-        print(f"DUT requested {pkg_name} from {drive_url}")
+        print(f"\n\n\n\n DUT requested {pkg_name=} {file_name=} from {drive_url} \n\n\n\n")
 
         try:
             # Assuming files are stored in a folder named 'files' in the server's directory
-            file_path = os.path.join(APKFolder, pkg_name)
+            file_path = os.path.join(APKFolder, file_name)
 
             # Check if file exists on server
             if not os.path.exists(f"{file_path}.apk") and not os.path.exists(f"{file_path}.zip_extracted"):
@@ -241,17 +258,16 @@ class PythonStoreViewSet(APIView):
                 # For now, I'm assuming file_id is passed but you may want to create a mapping
                 # or a database lookup to get the file ID based on the package_name
                 # folder_id = "1Lq_IdWlN9KOJT-h8dPiJsLFaRnHusg6e"
-                print("downloaing from google drive: ", pkg_name)
-                folder_id = drive_url
-                response = service.files().list(q=f"'{folder_id}' in parents").execute()
-                # print("Google drive response: ", response)
+                print("downloaing from google drive: ", file_name)
+                response = service.files().list(q=f"'{drive_url}' in parents").execute()
+                print("Google drive response: ", response)
                 files = response.get('files', [])
-                # print("Google drive response files: ", files)
+                print("Google drive response files: ", files)
                 file_id = None
                 ext = ""
                 for file in files:
                     # print("File in folder: ", file, file['name'])
-                    if str(file['name']).startswith(pkg_name):
+                    if str(file['name']).startswith(file_name):
                         file_id = file['id']
                         ext = file['name'].split(".")[-1]
                         break
@@ -259,7 +275,9 @@ class PythonStoreViewSet(APIView):
                 if file_id:
                     download_file_from_drive(file_id, file_path, ext)
                 else:
-                    return Response({"data": None, "error": "File not found in Google Drive"})
+                    err = f"File {file_name} not found in Google Drive"
+                    print(err)
+                    return Response({"data": None, "error": err})
 
             if installByBlankFilePath(tid, file_path):
                 return Response({"data": "Installed.", "error": None})
@@ -308,15 +326,15 @@ class ImageViewSet(APIView):
         path = req.data['imgPath']
 
 
-
         # The ID of your GCS bucket
-        bucket_name = env("BUCKET_NAME")
+        bucket_name = CONFIG['IMAGE_SERVER_BUCKET_NAME']
+        print(f"Uploading to {bucket_name}. {len(path)=} {path=}")
         # The path to your file to upload
         # source_file_name = "local/path/to/file"
         # The ID of your GCS object
         # destination_blob_name = "storage-object-name"
         destination_blob_name = path
-        # storage_client = storage.Client()
+
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(destination_blob_name)
 

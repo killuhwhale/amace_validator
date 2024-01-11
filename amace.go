@@ -42,7 +42,6 @@ func init() {
 			"candaya@google.com", // Optional test contact
 		},
 		Attr:         []string{"group:mainline", "informational"},
-		Data:         []string{"AMACE_app_list.tsv", "AMACE_secret.txt"},
 		SoftwareDeps: []string{"chrome", "android_vm"},
 		Timeout:      36 * 60 * time.Minute,
 		Fixture:      "arcBootedWithPlayStore",
@@ -111,7 +110,7 @@ var skipLoggIn = testing.RegisterVarString(
 var dSrcPath = testing.RegisterVarString(
 	"arc.amace.dsrcpath",
 	"na",
-	"Firebase document path to get app list data",
+	"Firebase document path to get app list data; Used just to pass through to results for run. Apps are written by python3 script to /data/ dir",
 )
 var dSrcType = testing.RegisterVarString(
 	"arc.amace.dsrctype",
@@ -121,7 +120,17 @@ var dSrcType = testing.RegisterVarString(
 var driveURL = testing.RegisterVarString(
 	"arc.amace.driveurl",
 	"na",
-	"Tells where to look for package name when using Pythonstore.",
+	"Tells which drive folder to look in for a package when using Pythonstore.",
+)
+var amaceAPIKey = testing.RegisterVarString(
+	"arc.amace.amaceapikey",
+	"na",
+	"Tells which drive folder to look in for a package when using Pythonstore.",
+)
+var appsToTest = testing.RegisterVarString(
+	"arc.amace.appsToTest",
+	"na",
+	"Tells which drive folder to look in for a package when using Pythonstore.",
 )
 
 func AMACE(ctx context.Context, s *testing.State) {
@@ -150,6 +159,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 	cr := s.FixtValue().(*arc.PreData).Chrome
 	d := s.FixtValue().(*arc.PreData).UIDevice
 	ax.ARC.ReadFile(ctx, "")
+
 	RunTS, err := strconv.ParseInt(runTS.Value(), 10, 64)
 
 	ctx, cancel := ctxutil.Shorten(ctx, 5*time.Second)
@@ -190,20 +200,17 @@ func AMACE(ctx context.Context, s *testing.State) {
 	buildInfo := fmt.Sprintf(("%s - %s (%s)"), buildInformation, buildChannel, arcVersion)
 	deviceInfo := fmt.Sprintf(("%s - %s"), deviceInformation, device.Value())
 
-	testApps, err := amace.LoadAppList(s, startat.Value())
+	testApps, err := amace.LoadAppList(s, appsToTest.Value(), startat.Value())
+
 	if err != nil {
 		s.Fatal("Error loading App List.tsv: ", err)
 	}
+
 	arcV, err := a.GetProp(ctx, "ro.build.version.release")
 	if err != nil {
 		s.Fatal("Failed to get Arc Verson for device")
 	}
-
-	secret, err := amace.LoadSecret(s)
-	if err != nil {
-		s.Fatal("Failed to get secret")
-	}
-	s.Logf("arcV: %s, build: %s, device: %s", arcV, buildInfo, deviceInfo)
+	s.Logf("arcVersion: %s, build: %s, device: %s", arcV, buildInfo, deviceInfo)
 
 	dispInfo, err := display.GetPrimaryInfo(ctx, tconn)
 	if err != nil {
@@ -248,7 +255,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		fbPreLoggedIn = amace.FacebookLogin(ctx, a, d, tconn, cr, keyboard, &appHistory, hostIP.Value(), runID.Value(), deviceInfo, ac, ash.WindowStateDefault)
 		testing.ContextLog(ctx, "Pre login facebook result: ", fbPreLoggedIn)
 		ar = amace.AppResult{App: amace.AppPackage{Pname: "com.facebook.katana.prelogin", Aname: "Facebook PreLogin"}, RunID: runID.Value(), RunTS: RunTS, AppTS: time.Now().UnixMilli(), Status: amace.IsAmacE, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, LoginResults: 10, DSrcPath: dSrcPath.Value()}
-		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
+		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 		if err != nil {
 			s.Log("Error posting: ", err)
 		}
@@ -289,8 +296,9 @@ func AMACE(ctx context.Context, s *testing.State) {
 		} else if dSrcType.Value() == "pythonstore" {
 			// Make request to Server with package name
 			// Get file, maybe a curl right into a download/ install?
-			if GetAPK(ctx, hostIP.Value(), appPack.Pname, driveURL.Value(), device.Value()) != nil {
+			if GetAPK(ctx, hostIP.Value(), appPack.Aname, appPack.Pname, driveURL.Value(), device.Value()) != nil {
 				failedToInstall = true
+				testing.ContextLogf(ctx, "GetAPK Err: %v", err)
 			}
 		}
 
@@ -299,7 +307,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
 			res, err := amace.PostData(
 				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-				s, postURL.Value(), buildInfo, secret, deviceInfo)
+				s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 			if err != nil {
 				s.Log("Error posting: ", err)
 
@@ -336,7 +344,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 				res, err := amace.PostData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.LaunchFail, BrokenStatus: amace.FailedLaunch, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
+					s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
 
@@ -374,7 +382,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 				finalLogs = amace.GetFinalLogs(crash)
 				res, err := amace.PostData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
+					s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
 
@@ -406,7 +414,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 				s.Log("💥💥💥 App failed to check: ", appPack.Pname, err)
 				res, err := amace.PostData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Fail, BrokenStatus: amace.FailedAmaceCheck, AppType: appInfo.Info.AppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
+					s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
 
@@ -446,7 +454,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 				amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App closed unexpectedly.", runID.Value(), hostIP.Value(), false)
 				res, err := amace.PostData(
 					amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-					s, postURL.Value(), buildInfo, secret, deviceInfo)
+					s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 				if err != nil {
 					s.Log("Error posting: ", err)
 
@@ -470,7 +478,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 					amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App crashed with black screen.", runID.Value(), hostIP.Value(), false)
 					res, err := amace.PostData(
 						amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: amace.Crashed, BrokenStatus: crash.CrashType, AppType: tmpAppType, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
-						s, postURL.Value(), buildInfo, secret, deviceInfo)
+						s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 					if err != nil {
 						s.Log("Error posting: ", err)
 
@@ -511,7 +519,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 		// // Create result and post
 		ar = amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: status, BrokenStatus: amace.Pass, AppType: tmpAppType, AppVersion: appInfo.Info.Version, AppHistory: &appHistory, Logs: finalLogs, LoginResults: loginResults, DSrcPath: dSrcPath.Value()}
 		s.Log("💥 ✅ ❌ ✅ 💥 App Result: ", ar)
-		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, secret, deviceInfo)
+		res, err := amace.PostData(ar, s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
 		if err != nil {
 			s.Log("Error posting: ", err)
 		}
@@ -608,54 +616,78 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP, killServer string) erro
 	return nil
 }
 
-// GetAPK send package name and drive folder id to host server to download and ADB install...
-func GetAPK(ctx context.Context, hostIP, pkgName, driveURL, dutIP string) error {
-
-	testing.ContextLogf(ctx, "Host ip: %s => %s, %s", hostIP, pkgName, driveURL)
-
+func createAPKFormFields(ctx context.Context, hostIP, fileName, pkgName, driveURL, dutIP string) (*bytes.Buffer, string, error) {
 	// Create a new multipart buffer
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
+	testing.ContextLogf(ctx, "createAPKFormFields: %s, %s, %s, %s, %s", hostIP, fileName, pkgName, driveURL, dutIP)
 
-	// Add the screenshot file
+	// Must write to field after creating!
+	// Add the additional data field,
 	pkgNameField, err := writer.CreateFormField("pkgName")
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-
-	// Write the image data to the form file field
 	if _, err = pkgNameField.Write([]byte(pkgName)); err != nil {
-		return err
+		return nil, "", err
 	}
 
-	// Add the additional data field
+	fileNameField, err := writer.CreateFormField("fileName")
+	if err != nil {
+		testing.ContextLog(ctx, "fileNameField Err: %v", err)
+		return nil, "", err
+	}
+	if _, err = fileNameField.Write([]byte(fileName)); err != nil {
+		testing.ContextLogf(ctx, "fileNameField.Write Err: %v", err)
+		return nil, "", err
+	}
+
 	driveURLField, err := writer.CreateFormField("driveURL")
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	driveURLField.Write([]byte(driveURL))
 
 	// Add the additional data field
 	dutIPField, err := writer.CreateFormField("dutIP")
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	dutIPField.Write([]byte(dutIP))
 
 	// Close the multipart writer
 	writer.Close()
 
+	contentType := writer.FormDataContentType()
+	return body, contentType, nil
+}
+
+// GetAPK send package name and drive folder id to host server to download and ADB install...
+func GetAPK(ctx context.Context, hostIP, fileName, pkgName, driveURL, dutIP string) error {
+
+	testing.ContextLogf(ctx, "Host ipZ: %s => %s, %s", hostIP, pkgName, driveURL)
+
+	body, contentType, err := createAPKFormFields(ctx, hostIP, fileName, pkgName, driveURL, dutIP)
+	if err != nil {
+		testing.ContextLogf(ctx, "Failed createAPKFormFields... %v", err)
+		return nil
+	}
+
+	testing.ContextLog(ctx, "POSTing pythonstore...")
+
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/pythonstore/", hostIP), body)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error NewRequest: ", err)
 		return err
 	}
 
 	// Set the Content-Type header to the multipart form data boundary
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Content-Type", contentType)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	testing.ContextLogf(ctx, "POSTing pythonstore resp: %v", resp)
+
 	if err != nil {
 		testing.ContextLog(ctx, "Error unexpected: ", err)
 		return err
@@ -674,7 +706,8 @@ func GetAPK(ctx context.Context, hostIP, pkgName, driveURL, dutIP string) error 
 
 	bodyString := string(bodyBytes)
 	testing.ContextLog(ctx, "ADB install: ", bodyString)
-	if strings.Contains(bodyString, "Failed to install") {
+
+	if strings.Contains(bodyString, "Failed to install") || strings.Contains(bodyString, "File not found") {
 		return errors.New("Failed to install app!")
 	}
 

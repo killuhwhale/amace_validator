@@ -16,11 +16,47 @@
 8. Attempt Login w/ Google, Facebook and Email.
 9. Multi device execution.
 
+# TODO()
+1. Create a config files for Host Machine
+    - Should contain all the environment vars needed for:
+        1. Image Server
+        2. TAST Tests
+        3. WSS Clients
+2. Refactor Code to remove all notions of AMACE_secret and nextAuthSecret.
+    - AMACE_secret => AMACEAPIKEY
+    - nextAuthSecret => jwtSecret
 
 
-# Auth w/ GCP
+
+# Dev notes:
+1. - AMACE_secret => AMACEAPIKEY
+   - nextAuthSecret => jwtSecret
+2. Config file:
+    - file_path = f"home/{USER}/.config/amaceValidator/config.json"
+
+
+# Dev and local host: Auth w/ GCP
+gcloud auth list
 gcloud auth application-default login
+gcloud auth application-default set-quota-project appvalfirebasetest
+gcloud config set project appvalfirebasetest
 
+
+# Google APIs used from Host (local device in lab):
+- Google Drive
+- Google Cloud Storage
+
+
+# Google Drive
+- Service account
+    - Add the service accounts email (GOOGLE_APPLICATION_CREDENTIALS_IMAGE_SERVER_STORAGESERVICEACCOUNTKEY.client_email) to the drive folder so it has access.
+
+# Google Storage
+## Note: Different account used from Google Drive due to python client library requiring a service account.
+This will use the ADC application default credentails which is created when logging in via `gcloud auth application-default login`
+With the email used to login, (find out w/ `gcloud auth list`) add that email as a principal w/ Storage Legacy Object Owner
+Cloud Storage > Buckets > Permissions > Grant Access
+ - email: Storage Legacy Object Owner
 
 # Enter Chroot
 cd ${CHROMEOS_SRC}/src/platform/
@@ -39,24 +75,34 @@ If you need to delete your chroot, use cros_sdk --delete to delete it properly. 
     - Send email
     - Object detection
 
-## dev start
-    DNAME=BRAIN python3 wssClient.py
 
+# Dev Start
+## wssClient (systemd service)
+    cd wssTriggerEnv/
+    source bin/activate
+    cd wssTrigger/
+    python3 wssClient.py
+            - [Deprecated - CLI args now in config ] DNAME=APPVAL002 TASTACCOUNT=emai@gmail.com:password
+
+## Image Server (systemd service)
     source bin/activate
     ./imageserver/manage.py runserver 192.168.1.229:8000
-
     ./manage.py runserver hostIP:8000
+
+## AppVal Dashboard
+    Open repo AppValDashboard
 
 
 
 # Start AMACE Validator
-
 ./startCROS.sh
 # Places user in scripts/
 ./startAMACE.sh root@192.168.1.122
 # optional url to override Prod url as second arg.
 ./startAMACE.sh root@192.168.1.122 http://192.168.1.229:3000/api/amaceResult
 
+# Run Raw Python command
+python3 /home/killuh/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py   -l  t --dsrcpath AppLists/TestList --dsrctype playstore -d  192.168.1.125
 
 
 # Run Raw TAST command

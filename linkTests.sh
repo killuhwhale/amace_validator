@@ -11,6 +11,11 @@
 triggerDirectory="${CHROMEOS_SRC}/src/scripts/wssTriggerEnv/wssTrigger"
 directory="${CHROMEOS_SRC}/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc"
 amace_dir="$directory/amace"
+
+
+file_path="${CHROMEOS_SRC}/src/scripts/.config/amaceValidator/"
+mkdir -p $file_path
+
 if [ ! -d "$amace_dir" ]; then
     echo "Creating directory: $amace_dir"
     mkdir -p "$directory"
@@ -20,8 +25,12 @@ fi
 
 
 # Helper Scripts
-# cp ./startCROS.sh /home/${USER}    # Starts Chroot
-# cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
+cp ./startCROS.sh /home/${USER}    # Starts Chroot
+cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
+
+# Program Config
+mkdir -p "${CHROMEOS_SRC}/src/scripts/.config/amaceValidator"
+cp ./config.json ${CHROMEOS_SRC}/src/scripts/.config/amaceValidator
 
 
 # Helper Functions
@@ -42,22 +51,28 @@ cp ./amace/utils.go              $amace_dir/utils.go
 cp ./amace/windowUtils.go        $amace_dir/windowUtils.go
 cp ./amace/yoloDetect.go         $amace_dir/yoloDetect.go
 
-
-
-
-# Data Files
-# cp ./AMACE_app_list.tsv          $directory/data/AMACE_app_list.tsv
-# cp ./AMACE_secret.txt            $amace_dir/data/AMACE_secret.txt
-
-
-# Main Test
+# Main TAST Test
 cp ./amace.go $directory/amace.go
 cp ./amace.py $directory/amace.py
-mkdir -p $triggerDirectory
 
+
+# WSS Clients
+mkdir -p $triggerDirectory
 cp ./wssClient.py $triggerDirectory/wssClient.py
+cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./updateRemoteDevice.sh $triggerDirectory/updateRemoteDevice.sh
 cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
-cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
-# cp ./wssUpdater.py $triggerDirectory/wssUpdater.py # Update this script manually when needed. Not intended to update remotely.
 
+# Python Helper (centralize config)
+cp ./amace_helpers.py $triggerDirectory/amace_helpers.py
+cp ./amace_helpers.py $directory/amace_helpers.py
+cp ./amace_helpers.py ./imageserver/imageserver/amace_helpers.py
+
+# Historic Record...
+# TODO(candaya) Move to config file
+# cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
+# cp ./wssUpdater.py $triggerDirectory/wssUpdater.py # Update this script manually when needed. Not intended to update remotely.
+# Data Files
+# cp ./AMACE_app_list.tsv          $directory/data/AMACE_app_list.tsv
+# TODO(candaya) Move to config file
+# cp ./AMACE_secret.txt            $amace_dir/data/AMACE_secret.txt

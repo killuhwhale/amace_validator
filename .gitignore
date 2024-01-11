@@ -5,3 +5,4 @@ imageserver/imageserver/__pycache__/*
 imageserver/imageserver/.env
 imageserver/imageserver/storageServiceAccountKey.json
 *.pyc
+config.json

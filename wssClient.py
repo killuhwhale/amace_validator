@@ -1,81 +1,37 @@
 import asyncio
 import json
-import sys
 import jwt
+import ipaddress
 import os
 import subprocess
 import threading
 import time
 import websockets
 import psutil
-from dotenv import load_dotenv
+from amace_helpers import line_start, encode_jwt, CONFIG, ping, pj, USER, CHROMEOS_SRC, get_server_wss_url
 
-load_dotenv()
+"""
+Location:
+    f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
+
+Useage:
+   python3 wssClient.py
+"""
+
 exit_signal = threading.Event()
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
-USER = os.environ.get("USER")
-DEVICE_NAME = os.environ.get('DNAME')
-account = os.environ.get("TASTACCOUNT")
-# devices = ["192.168.1.125"]
-
 
 def make_device_args(ips):
     return ["-d", ips]
-
-def req_env_var(value, name, env_var):
-    if value is None:
-        print(f"Env var: {name} not found, must enter env var: {env_var}")
-        sys.exit(1)
-
-
-req_env_var(DEVICE_NAME, "Device Name", 'DEVICE_NAME')
-req_env_var(account, "Tast Account", 'account')
-
-
-Red     = "\033[31m"
-Black   = "\033[30m"
-Green   = "\033[32m"
-Yellow  = "\033[33m"
-Blue    = "\033[34m"
-Purple  = "\033[35m"
-Cyan    = "\033[36m"
-White   = "\033[37m"
-RESET   = "\033[0m"
-
-line_start = f"{Blue}>{Red}>{Yellow}>{Green}>{Blue}{RESET} "
-
-cwd = f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
-
-def read_secret():
-    secret = ""
-    with open(f"{cwd}/nextAuthSecret.txt", 'r') as f:
-        secret = f.readline()
-    return secret.strip("\n")
-
-def encode_jwt(payload, secret, algorithm='HS512'):
-    """
-    Encode a payload into a JWT token.
-
-    Parameters:
-    - payload: The data you want to encode into the JWT.
-    - secret: The secret key to sign the JWT.
-    - algorithm: The algorithm to use for signing. Default is 'HS512'.
-
-    Returns:
-    - Encoded JWT token as a string.
-    """
-    encoded_jwt = jwt.encode(payload, secret, algorithm=algorithm)
-    return encoded_jwt
-
 
 def cmd(devices, dsrcpath, dsrctype):
     return [
         "python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
-        "-a", account,
-        "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
-        "-u", "http://192.168.1.229:3000/api/amaceResult",
+        # "-a", account,
+        # "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
+        # "-u", "http://192.168.1.229:3000/api/amaceResult",
         "-l", "t",
         "--dsrcpath", f"AppLists/{dsrcpath}",
         "--dsrctype", dsrctype,
@@ -83,13 +39,6 @@ def cmd(devices, dsrcpath, dsrctype):
 
 def get_d_src_type(playstore: bool):
     return "playstore" if playstore else "pythonstore"
-
-def ping(msg, data, wssToken):
-    return str(json.dumps({"msg": msg, "data": {**data, "wssToken": wssToken}}))
-
-def pj(s: str):
-    # parse json
-    return json.loads(s)
 
 def kill():
     exit_signal.set()
@@ -132,7 +81,10 @@ def run_process(cmd, wssToken):
 
         if current_websocket:
             asyncio.run(current_websocket.send(ping(f"progress:{line_start}{output}", {}, wssToken)))
+        else:
+            print(f"No current socket found...")
 
+        process_poll = process.poll()
         time.sleep(.1)  # Sleep for a short duration before checking again
 
     process_event.clear()
@@ -142,7 +94,6 @@ def run_process(cmd, wssToken):
     if current_websocket:
         print(line_start, "Process completed!")
         asyncio.run(current_websocket.send(ping("Process completed!", {}, wssToken)))
-
 
 
 async def listen_to_ws():
@@ -194,17 +145,15 @@ async def listen_to_ws():
 
     """
     global cmd
-    global DEVICE_NAME
     global current_websocket
     global process_event
-    # global devices
-    secret = read_secret()
-    print("Using secret: ", secret)
-    wssToken = encode_jwt({"email": "wssClient@ggg.com"}, secret)
 
-    uri = "ws://localhost:3001/wss/"
-    uri = "wss://appvaldashboard.com/wss/"
-    print(line_start, f"Device: {DEVICE_NAME} is using URI: ", uri)
+    jwt_secret = CONFIG["AMACE_JWT_SECRET"]
+    device_name = CONFIG["HOST_DEVICE_NAME"]
+    wssToken = encode_jwt({"email": "wssClient@ggg.com"}, jwt_secret)
+    uri = get_server_wss_url()
+    print(line_start, f"{device_name=} is using URI: {uri} w/ {jwt_secret=}")
+
     while True:
         try:
             # The connection will persist as long as the server keeps it open
@@ -215,7 +164,7 @@ async def listen_to_ws():
                     message = mping['msg']
                     data = mping['data']
                     print(line_start, f"Received message: {message} ")
-                    if message == f"startrun_{DEVICE_NAME}":
+                    if message == f"startrun_{device_name}":
                         # Check if the process is not already running
                         if not process_event.is_set():
 
@@ -230,28 +179,28 @@ async def listen_to_ws():
                             )
                             thread.start()
                             print(line_start, "Run started!")
-                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}", {}, wssToken))
+                            await websocket.send(ping(f"runstarted:{device_name}", {}, wssToken))
                         else:
                             print(line_start, "Run in progress!")
-                            await websocket.send(ping(f"runstarted:{DEVICE_NAME}:runinprogress", {}, wssToken))
-                    elif message == f"querystatus_{DEVICE_NAME}":
+                            await websocket.send(ping(f"runstarted:{device_name}:runinprogress", {}, wssToken))
+                    elif message == f"querystatus_{device_name}":
                         status_msg =  "running" if process_event.is_set() else "stopped"
-                        status = f"status:{DEVICE_NAME}:{status_msg}"
+                        status = f"status:{device_name}:{status_msg}"
                         print(line_start, "Sending status: ", status)
                         await websocket.send(ping(status, {}, wssToken))
                     elif message == "getdevicename":
-                        print(line_start, "Sending name: ", DEVICE_NAME)
-                        tts = ping(f"getdevicename:{DEVICE_NAME}", {"key": "value"}, wssToken)
+                        print(line_start, "Sending name: ", device_name)
+                        tts = ping(f"getdevicename:{device_name}", {"key": "value"}, wssToken)
                         print(line_start, "Sending name: ", tts, type(tts))
                         await websocket.send(tts)
 
                     # Deprecated, we now restart a service to stop the current run from wssUpdater.py
-                    # elif message == f"stoprun_{DEVICE_NAME}":
+                    # elif message == f"stoprun_{device_name}":
                     #     print(line_start, "Run stopping....")
                     #     if process_event.is_set():  # Check if process is running
                     #         kill()
                     #         print(line_start, "Run stopped!")
-                    #         await websocket.send(ping(f"runstopped:{DEVICE_NAME}", {}, wssToken))
+                    #         await websocket.send(ping(f"runstopped:{device_name}", {}, wssToken))
                     # elif not thread is None:
                     #     print(line_start, "We can print out the output from process here every 2s...", thread)
 
