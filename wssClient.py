@@ -8,8 +8,7 @@ import threading
 import time
 import websockets
 import psutil
-from amace_helpers import line_start, encode_jwt, CONFIG, ping, pj, USER, CHROMEOS_SRC, get_server_wss_url
-
+from amace_helpers import line_start, encode_jwt, CONFIG, ping, pj, USER, CHROMEOS_SRC, get_server_wss_url, CHROMEOS_SCRIPTS
 """
 Location:
     f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/wssTrigger"
@@ -17,6 +16,20 @@ Location:
 Useage:
    python3 wssClient.py
 """
+import logging
+import os
+
+# You can specify your LOG_DIR here
+LOG_DIR = f"{CHROMEOS_SCRIPTS}/.config/amaceValidator/logs"  # Replace with your log directory path
+
+# Ensure the LOG_DIR exists, create if it does not
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# Setting up the logging configuration
+log_file = os.path.join(LOG_DIR, 'application.log')
+logging.basicConfig(filename=log_file, level=logging.DEBUG,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 exit_signal = threading.Event()
 process_event = threading.Event()
@@ -27,7 +40,7 @@ def make_device_args(ips):
 
 def cmd(devices, dsrcpath, dsrctype):
     return [
-        "python3",
+        "/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/bin/python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
         # "-a", account,
         # "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
@@ -63,26 +76,41 @@ def run_process(cmd, wssToken):
     process_event.set()
     # Use Popen to start the process without blocking
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    logging.debug("Starting process!: ")
+    process = None
+    try:
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except Exception as err:
+        logging.debug("Error starting process!")
+        logging.debug(f"Error starting process! {err}")
 
+    logging.debug("Process started: %s, Err: %s", process.stdout, process.stderr)
     while process.poll() is None:  # While the process is still running
         if exit_signal.is_set():  # Check if exit signal is set
             print(line_start, "TERMINATING PROCESS")
+            logging.debug("TERMINATING PROCESS!")
             kill_proc_tree(process.pid)
             break
+
         output = ""
         try:
             # output = process.stdout.readline().decode("utf-8").strip("\n")
-            output = process.stdout.readline()
-            print(line_start, "Progress: ", output)
+            output = process.stdout.read()
         except Exception as err:
             print("Error decoding message and sending progress: ", err)
-            output = process.stdout.readline()
+            logging.debug("Error decoding message and sending progress: ", err)
+            output = process.stdout.read()
 
-        if current_websocket:
-            asyncio.run(current_websocket.send(ping(f"progress:{line_start}{output}", {}, wssToken)))
-        else:
-            print(f"No current socket found...")
+
+        try:
+            logging.debug("Progress: %s", output)
+            print(line_start, "Progress: ", output)
+            if current_websocket:
+                asyncio.run(current_websocket.send(ping(f"progress:{line_start}{output}", {}, wssToken)))
+            else:
+                print(f"No current socket found...")
+        except Exception as err:
+            logging.debug("Error: %s", str(err))
 
         process_poll = process.poll()
         time.sleep(.1)  # Sleep for a short duration before checking again
@@ -153,6 +181,7 @@ async def listen_to_ws():
     wssToken = encode_jwt({"email": "wssClient@ggg.com"}, jwt_secret)
     uri = get_server_wss_url()
     print(line_start, f"{device_name=} is using URI: {uri} w/ {jwt_secret=}")
+    logging.debug(f"{device_name=} is using URI: {uri} w/ {jwt_secret=}")
 
     while True:
         try:
@@ -164,6 +193,8 @@ async def listen_to_ws():
                     message = mping['msg']
                     data = mping['data']
                     print(line_start, f"Received message: {message} ")
+                    logging.debug(f"Received message: {message} ")
+
                     if message == f"startrun_{device_name}":
                         # Check if the process is not already running
                         if not process_event.is_set():
@@ -173,12 +204,16 @@ async def listen_to_ws():
                                         data['listname'],
                                         get_d_src_type(data['playstore']))
                             print(line_start, "using start command: ", start_cmd)
+                            logging.debug(f"using start command: {start_cmd}")
+
                             thread = threading.Thread(
                                 target=run_process,
                                 args=(start_cmd, wssToken, )
                             )
                             thread.start()
+
                             print(line_start, "Run started!")
+                            logging.debug("Run started!")
                             await websocket.send(ping(f"runstarted:{device_name}", {}, wssToken))
                         else:
                             print(line_start, "Run in progress!")
@@ -217,7 +252,3 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(listen_to_ws())
     loop.run_forever()
-
-
-
-

@@ -3,7 +3,7 @@
 
 cat << EOF > /etc/systemd/system/imageserver.service
 [Unit]
-Description=ImageServer Service
+Description=imageserver Service
 After=network.target
 
 [Service]

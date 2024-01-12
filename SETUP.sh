@@ -1,21 +1,22 @@
 # Runs scripts need to setup automation
 
+
+# Copy files from Repo to TAST and WSS clients' directories
+bash linkTests.sh
+
 # Create service and start server
 sudo bash service.sh
 sudo systemctl start imageserver.service
 sudo systemctl enable imageserver.service
 
 
-# Copy files from Repo to TAST and WSS clients' directories
-bash linkTests.sh
-
-# Enter Chroot
-bash startCROS.sh
-
+# Create service and start server
+sudo bash service_wssClient.sh
+sudo systemctl start wssClient.service
+sudo systemctl enable wssClient.service
 
 
-echo "Make sure to add AMACE_secret.txt to .../arc/data/AMACE_secret.txt"
-
-
-echo "After running this you should be in this CHROOT @ /chromiumos/src/scripts"
-echo "Run bash startAMACE.sh -d 192.168.1.123 -d 192.168.1.456 -a account@gmail.com:password"
+# Create service and start server
+sudo bash service_wssUpdater.sh
+sudo systemctl start wssUpdater.service
+sudo systemctl enable wssUpdater.service

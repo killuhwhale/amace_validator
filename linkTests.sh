@@ -28,12 +28,12 @@ fi
 cp ./startCROS.sh /home/${USER}    # Starts Chroot
 cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
 
-# Program Config
+# Program Config/ Logs
 mkdir -p "${CHROMEOS_SRC}/src/scripts/.config/amaceValidator"
 cp ./config.json ${CHROMEOS_SRC}/src/scripts/.config/amaceValidator
 
 
-# Helper Functions
+# Helper Functions for TAST
 cp ./amace/amaceScreenshot.go    $amace_dir/amaceScreenshot.go
 cp ./amace/appHistory.go         $amace_dir/appHistory.go
 cp ./amace/appUtils.go           $amace_dir/appUtils.go
@@ -61,18 +61,9 @@ mkdir -p $triggerDirectory
 cp ./wssClient.py $triggerDirectory/wssClient.py
 cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./updateRemoteDevice.sh $triggerDirectory/updateRemoteDevice.sh
-cp ./wssReqs.txt $triggerDirectory/wssReqs.txt
+cp ./requirements.txt $triggerDirectory/requirement.txt
 
 # Python Helper (centralize config)
 cp ./amace_helpers.py $triggerDirectory/amace_helpers.py
 cp ./amace_helpers.py $directory/amace_helpers.py
 cp ./amace_helpers.py ./imageserver/imageserver/amace_helpers.py
-
-# Historic Record...
-# TODO(candaya) Move to config file
-# cp ./nextAuthSecret.txt $triggerDirectory/nextAuthSecret.txt
-# cp ./wssUpdater.py $triggerDirectory/wssUpdater.py # Update this script manually when needed. Not intended to update remotely.
-# Data Files
-# cp ./AMACE_app_list.tsv          $directory/data/AMACE_app_list.tsv
-# TODO(candaya) Move to config file
-# cp ./AMACE_secret.txt            $amace_dir/data/AMACE_secret.txt
