@@ -36,7 +36,7 @@ def make_device_args(ips):
 
 def cmd(devices, dsrcpath, dsrctype):
     return [
-        "/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/bin/python3",
+        f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/bin/python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
         # "-a", account,
         # "-p", f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/data/AMACE_secret.txt",
