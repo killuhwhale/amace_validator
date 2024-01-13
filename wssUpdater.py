@@ -23,7 +23,7 @@ if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
 # Setting up the logging configuration
-log_file = os.path.join(LOG_DIR, 'application.log')
+log_file = os.path.join(LOG_DIR, 'wssUpdater.log')
 logging.basicConfig(filename=log_file, level=logging.DEBUG,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
