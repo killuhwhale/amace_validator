@@ -34,19 +34,13 @@ current_websocket = None  # Global variable to hold the current WebSocket
 def make_device_args(ips):
     return ["-d", ips]
 
-
-help=,
-help=,
-help=,
-help="Firebase document path for data/app list to test.",
-help="Data/ app list type: [playstore | pythonstore]",
 def cmd(devices, dsrcpath, dsrctype):
     return [
         f"/home/{USER}/chromiumos/src/scripts/wssTriggerEnv/bin/python3",
         f"/home/{USER}/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py",
-        "-w", CONFIG['skip_window_check'], # "Skip amace window check. t|f"
-        "-b", CONFIG['skip_broken'], # "Skip broken check. t|f"
-        "-l", CONFIG['skip_login'], # "Skip login. t|f"
+        "-w", CONFIG['SKIP_WINDOW_CHECK'], # "Skip amace window check. t|f"
+        "-b", CONFIG['SKIP_BROKEN'], # "Skip broken check. t|f"
+        "-l", CONFIG['SKIP_LOGIN'], # "Skip login. t|f"
         "--dsrcpath", f"AppLists/{dsrcpath}",
         "--dsrctype", dsrctype,
     ] + make_device_args(devices)
