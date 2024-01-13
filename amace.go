@@ -100,7 +100,7 @@ var skipAmace = testing.RegisterVarString(
 var skipBrokenCheck = testing.RegisterVarString(
 	"arc.amace.skipbrokencheck",
 	"na",
-	"Skips broken app check.",
+	"Skips broken app check, skips checking error logs for crash.",
 )
 var skipLoggIn = testing.RegisterVarString(
 	"arc.amace.skiploggin",
