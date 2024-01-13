@@ -27,8 +27,7 @@ log_file = os.path.join(LOG_DIR, 'wssUpdater.log')
 logging.basicConfig(filename=log_file, level=logging.DEBUG,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
-SUDO_PASSWORD = os.environ.get("SUDO_PASSWORD")
-req_env_var(SUDO_PASSWORD, "Host device password. E.g: appval002's password", 'SUDO_PASSWORD')
+SUDO_PASSWORD = CONFIG["SUDO_PASSWORD"]
 
 process_event = threading.Event()
 current_websocket = None  # Global variable to hold the current WebSocket
