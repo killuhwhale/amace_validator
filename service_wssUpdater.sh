@@ -10,7 +10,7 @@ After=network.target
 User=appval002
 Group=www-data
 WorkingDirectory=/home/appval002/chromiumos/src/scripts/wssTriggerEnv/wssTrigger
-ExecStart=/usr/bin/env bash -c '/home/appval002/chromiumos/src/scripts/wssTriggerEnv/bin/python3 /home/appval002/chromiumos/src/scripts/wssTriggerEnv/wssTrigger/wssUpdater.py'
+ExecStart=/usr/bin/env bash -c 'python3 /home/appval002/chromiumos/src/scripts/wssTriggerEnv/wssTrigger/wssUpdater.py'
 Restart=always
 
 [Install]
