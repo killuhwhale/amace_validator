@@ -1,22 +1,22 @@
-# Runs scripts need to setup automation
-
+# Runs scripts needed to setup automation
 
 # Copy files from Repo to TAST and WSS clients' directories
 bash linkTests.sh
 
-# Create service and start server
+# Create and start service
 sudo bash service.sh
-sudo systemctl start imageserver.service
+sudo systemctl daemon-reload
 sudo systemctl enable imageserver.service
+sudo systemctl start imageserver.service
 
-
-# Create service and start server
+# Create and start service
 sudo bash service_wssClient.sh
-sudo systemctl start wssClient.service
+sudo systemctl daemon-reload
 sudo systemctl enable wssClient.service
+sudo systemctl start wssClient.service
 
-
-# Create service and start server
+# Create and start service
 sudo bash service_wssUpdater.sh
-sudo systemctl start wssUpdater.service
+sudo systemctl daemon-reload
 sudo systemctl enable wssUpdater.service
+sudo systemctl start wssUpdater.service
