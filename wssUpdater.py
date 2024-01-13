@@ -75,7 +75,7 @@ def restart_wssClient_service(pswd):
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = proc.communicate(input=pswd + '\n')
-
+    logging.debug(f"restart_wssClient_service: {stdout=} {stderr=}")
     print("restart_wssClient_service: ")
     print("stdout: ", proc.stdout)
     print("stderr: ", proc.stderr)
