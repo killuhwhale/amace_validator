@@ -1,14 +1,12 @@
 import asyncio
-import json
-import sys
-import jwt
 import os
-import ipaddress
 import subprocess
 import threading
 import time
 import websockets
-from amace_helpers import line_start, req_env_var, encode_jwt, CONFIG, ping, pj, get_server_wss_url
+from amace_helpers import line_start, req_env_var, encode_jwt, CONFIG, ping, pj, get_server_wss_url, CHROMEOS_SCRIPTS
+import logging
+
 
 """
 Location:
@@ -17,6 +15,17 @@ Location:
 Useage:
    SUDO_PASSWORD=HOST_USER_PASSWORD python3 wssUpdater.py
 """
+# You can specify your LOG_DIR here
+LOG_DIR = f"{CHROMEOS_SCRIPTS}/.config/amaceValidator/logs"  # Replace with your log directory path
+
+# Ensure the LOG_DIR exists, create if it does not
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# Setting up the logging configuration
+log_file = os.path.join(LOG_DIR, 'application.log')
+logging.basicConfig(filename=log_file, level=logging.DEBUG,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 SUDO_PASSWORD = os.environ.get("SUDO_PASSWORD")
 req_env_var(SUDO_PASSWORD, "Host device password. E.g: appval002's password", 'SUDO_PASSWORD')
@@ -89,6 +98,8 @@ async def listen_to_ws():
     uri = get_server_wss_url()
 
     print(line_start, f"Device: {DEVICE_NAME} is using URI: ", uri)
+    logging.debug(f"Device: {DEVICE_NAME} is using URI: {uri} {SUDO_PASSWORD=}")
+
     while True:
         try:
             # The connection will persist as long as the server keeps it open
@@ -100,9 +111,11 @@ async def listen_to_ws():
                     data = mping['data']
 
                     if not message.startswith("progress:"):
-                        print(line_start, f"Received message: {message} ")
+                        logging.debug(f"Received message: {message}")
+                        print(line_start, f"Received message: {message}")
 
                     if message == f"update_{DEVICE_NAME}":
+                        logging.debug("Update called...")
                         # Check if the process is not already running
                         if not process_event.is_set():
                             start_cmd = cmd()
@@ -119,6 +132,7 @@ async def listen_to_ws():
                             await websocket.send(ping(f"updating:{DEVICE_NAME}:updateinprogress", {}, wssToken))
                     elif message.startswith(f"stoprun_{DEVICE_NAME}"):
                         print(line_start, "Run stopping call restart wssClient.service....")
+                        logging.debug(f"Stop run called, restarting wssClient.service...")
                         restart_wssClient_service(SUDO_PASSWORD)
                         await websocket.send(ping(f"runstopped:updater:{DEVICE_NAME}", {}, wssToken))
 

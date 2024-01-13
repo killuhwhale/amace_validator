@@ -1,7 +1,5 @@
 import asyncio
-import json
-import jwt
-import ipaddress
+import logging
 import os
 import subprocess
 import threading
@@ -16,8 +14,6 @@ Location:
 Useage:
    python3 wssClient.py
 """
-import logging
-import os
 
 # You can specify your LOG_DIR here
 LOG_DIR = f"{CHROMEOS_SCRIPTS}/.config/amaceValidator/logs"  # Replace with your log directory path
