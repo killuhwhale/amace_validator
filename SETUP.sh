@@ -9,7 +9,7 @@ WSS_TRIGGER_PATH=$(jq -r '.WSS_TRIGGER_PATH' "$CONFIG")
 
 check_jq_installed() {
     if ! command -v jq &> /dev/null; then
-        echo "jq is not installed. Please install jq to run this script."
+        echo "jq is not installed. Please apt install jq to run this script."
         exit 1
     fi
 }
@@ -22,6 +22,7 @@ check_empty() {
     fi
 }
 
+check_jq_installed
 # Check if the variables are empty
 check_empty "$SUDO_PASSWORD" "SUDO_PASSWORD"
 check_empty "$IMAGE_SERVER_DIR" "IMAGE_SERVER_DIR"

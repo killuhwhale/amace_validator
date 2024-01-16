@@ -7,7 +7,6 @@
 
 '''
 tast -verbose run -var=arc.amace.posturl=http://xyz.com -var=arc.amace.hostip=http://192.168.1.123  -var=arc.amace.device=root@192.168.1.456 -var=amace.runts=123 -var=amace.runid=123  -var=ui.gaiaPoolDefault=email@gmail.com:password root@192.168.1.238 arc.AMACE
-./startAMACE.sh -d root@192.168.1.125 -d root@192.168.1.141 -a email@gmail.com:password
 '''
 import argparse
 import ipaddress
@@ -413,6 +412,5 @@ if __name__ == "__main__":
 
     print("Starting on devices: ", ips)
     print(f"\n\nCLIGGGGGG args: {server_url=} {host_ip=} {test_account=} {skip_amace=} {skip_broken=} {skip_login=}\n\n")
-    # ./startAMACE.sh -d 192.168.1.132 -a account@gmail.com:password -u http://192.168.1.229:3000/api/amaceResult -w t -b t -l t
     tr = MultiprocessTaskRunner(post_url, host_ip, amace_api_key=amace_api_key, ips=ips, test_account=test_account, creds=creds, skip_amace= skip_amace, skip_broken= skip_broken, skip_login= skip_login, dsrcpath=dsrcpath, dsrctype=dsrctype, appsToTest=appsToTest, driveURL=driveURL)
     tr.run()

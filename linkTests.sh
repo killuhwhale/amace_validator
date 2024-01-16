@@ -23,11 +23,6 @@ else
     echo "Directory already exists: $amace_dir"
 fi
 
-
-# Helper Scripts
-cp ./startCROS.sh /home/${USER}    # Starts Chroot
-cp ./startAMACE.sh ${CHROMEOS_SRC}/src/scripts  # Starts automation
-
 # Program Config/ Logs
 mkdir -p "${CHROMEOS_SRC}/src/scripts/.config/amaceValidator"
 cp ./config.json ${CHROMEOS_SRC}/src/scripts/.config/amaceValidator
