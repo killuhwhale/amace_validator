@@ -13,9 +13,6 @@ directory="${CHROMEOS_SRC}/src/platform/tast-tests/src/go.chromium.org/tast-test
 amace_dir="$directory/amace"
 
 
-file_path="${CHROMEOS_SRC}/src/scripts/.config/amaceValidator/"
-mkdir -p $file_path
-
 if [ ! -d "$amace_dir" ]; then
     echo "Creating directory: $amace_dir"
     mkdir -p "$directory"
@@ -24,8 +21,9 @@ else
 fi
 
 # Program Config/ Logs
-mkdir -p "${CHROMEOS_SRC}/src/scripts/.config/amaceValidator"
-cp ./config.json ${CHROMEOS_SRC}/src/scripts/.config/amaceValidator
+file_path="${CHROMEOS_SRC}/src/scripts/.config/amaceValidator/"
+mkdir -p file_path
+cp ./config.json $file_path
 
 
 # Helper Functions for TAST
