@@ -50,6 +50,8 @@ rsa==4.9
 six==1.16.0
 sqlparse==0.4.4
 thop==0.1.1.post2209072238
+torch
+torchvision
 tqdm==4.64.1
 typing-extensions==4.7.0
 uritemplate==4.1.1
