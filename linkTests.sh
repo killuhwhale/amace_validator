@@ -23,7 +23,7 @@ fi
 # Program Config/ Logs
 file_path="${CHROMEOS_SRC}/src/scripts/.config/amaceValidator/"
 mkdir -p file_path
-cp ./config.json $file_path
+cp ./config.json "${file_path}/config"
 
 
 # Helper Functions for TAST

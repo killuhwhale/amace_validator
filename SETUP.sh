@@ -32,7 +32,7 @@ check_empty "$WSS_TRIGGER_PATH" "WSS_TRIGGER_PATH"
 bash linkTests.sh
 
 #After linking files to their proper location, we need to install python modules
-cur_dir="$pwd"
+cur_dir="${pwd}"
 
 cd $WSS_TRIGGER_PATH
 python3 -m venv .
