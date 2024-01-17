@@ -56,7 +56,7 @@ mkdir -p $triggerDirectory
 cp ./wssClient.py $triggerDirectory/wssClient.py
 cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./updateRemoteDevice.sh $triggerDirectory/updateRemoteDevice.sh
-cp ./requirements.txt $triggerDirectory/requirements.txt
+cp ./requirementsWss.txt $triggerDirectory/requirements.txt
 
 # Python Helper (centralize config)
 cp ./amace_helpers.py $triggerDirectory/amace_helpers.py
