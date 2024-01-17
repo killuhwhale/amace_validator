@@ -31,20 +31,15 @@ check_empty "$WSS_TRIGGER_PATH" "WSS_TRIGGER_PATH"
 
 bash linkTests.sh
 
-#After linking files to their proper location, we need to install python modules
-cur_dir="${pwd}"
 
-cd $WSS_TRIGGER_PATH
-python3 -m venv .
-bin/python3 -m pip install -r wssTrigger/requirements.txt
-python3 -m pip install -r wssTrigger/requirements.txt # wssUpdater runs in User env and needs a few things...
-
-cd $IMAGE_SERVER_DIR
-python3 -m venv .
-bin/python3 install -r requirements.txt
+python3 -m pip install -r  $WSS_TRIGGER_PATH/wssTrigger/requirements.txt # wssUpdater runs in User env and needs a few things...
+python3 -m venv $WSS_TRIGGER_PATH
+$WSS_TRIGGER_PATH/bin/python3 -m pip install -r $WSS_TRIGGER_PATH/wssTrigger/requirements.txt
 
 
-cd $cur_dir
+python3 -m venv $IMAGE_SERVER_DIR
+$IMAGE_SERVER_DIR/bin/python3 -m pip install -r $IMAGE_SERVER_DIR/wssTrigger/requirements.txt
+
 
 asSudo() {
     echo "$SUDO_PASSWORD" | sudo -S $1
