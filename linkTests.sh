@@ -23,7 +23,7 @@ fi
 # Program Config/ Logs
 file_path="${CHROMEOS_SRC}/src/scripts/.config/amaceValidator"
 mkdir -p file_path
-cp ./config.json "${file_path}/config"
+cp ./config.json "${file_path}/config.json"
 
 
 # Helper Functions for TAST
@@ -54,7 +54,7 @@ mkdir -p $triggerDirectory
 cp ./wssClient.py $triggerDirectory/wssClient.py
 cp ./wssUpdater.py $triggerDirectory/wssUpdater.py
 cp ./updateRemoteDevice.sh $triggerDirectory/updateRemoteDevice.sh
-cp ./requirements.txt $triggerDirectory/requirement.txt
+cp ./requirements.txt $triggerDirectory/requirements.txt
 
 # Python Helper (centralize config)
 cp ./amace_helpers.py $triggerDirectory/amace_helpers.py
