@@ -36,8 +36,8 @@ cur_dir="${pwd}"
 
 cd $WSS_TRIGGER_PATH
 python3 -m venv .
-bin/python3 install -r wssTrigger/requirements.txt
-python3 install -r wssTrigger/requirements.txt # wssUpdater runs in User env and needs a few things...
+bin/python3 -m pip install -r wssTrigger/requirements.txt
+python3 -m pip install -r wssTrigger/requirements.txt # wssUpdater runs in User env and needs a few things...
 
 cd $IMAGE_SERVER_DIR
 python3 -m venv .
