@@ -31,14 +31,26 @@ check_empty "$WSS_TRIGGER_PATH" "WSS_TRIGGER_PATH"
 
 bash linkTests.sh
 
+IMAGE_SERVER_VENV_PYTHON=$(${IMAGE_SERVER_DIR}/bin/python3)
+if [ ! -f "$IMAGE_SERVER_VENV_PYTHON" ]; then
+    echo "Creating image server venv"
+    python3 -m venv $IMAGE_SERVER_DIR
+    $IMAGE_SERVER_DIR/bin/python3 -m pip install -r $IMAGE_SERVER_DIR/requirements.txt
+fi
+
+
+WSSTRIGGER_VENV_PYTHON=$(${WSS_TRIGGER_PATH}/bin/python3)
+if [ ! -f "$WSSTRIGGER_VENV_PYTHON" ]; then
+    echo "Creating wssTrigger venv"
+    python3 -m venv $WSS_TRIGGER_PATH
+    $WSS_TRIGGER_PATH/bin/python3 -m pip install -r $WSS_TRIGGER_PATH/wssTrigger/requirements.txt
+fi
+
 
 python3 -m pip install -r  $WSS_TRIGGER_PATH/wssTrigger/requirements.txt # wssUpdater runs in User env and needs a few things...
-python3 -m venv $WSS_TRIGGER_PATH
-$WSS_TRIGGER_PATH/bin/python3 -m pip install -r $WSS_TRIGGER_PATH/wssTrigger/requirements.txt
 
 
-python3 -m venv $IMAGE_SERVER_DIR
-$IMAGE_SERVER_DIR/bin/python3 -m pip install -r $IMAGE_SERVER_DIR/wssTrigger/requirements.txt
+
 
 
 asSudo() {
