@@ -31,7 +31,7 @@ check_empty "$WSS_TRIGGER_PATH" "WSS_TRIGGER_PATH"
 
 bash linkTests.sh
 
-IMAGE_SERVER_VENV_PYTHON=$(${IMAGE_SERVER_DIR}/bin/python3)
+IMAGE_SERVER_VENV_PYTHON="${IMAGE_SERVER_DIR}/bin/python3"
 if [ ! -f "$IMAGE_SERVER_VENV_PYTHON" ]; then
     echo "Creating image server venv"
     python3 -m venv $IMAGE_SERVER_DIR
@@ -39,7 +39,7 @@ if [ ! -f "$IMAGE_SERVER_VENV_PYTHON" ]; then
 fi
 
 
-WSSTRIGGER_VENV_PYTHON=$(${WSS_TRIGGER_PATH}/bin/python3)
+WSSTRIGGER_VENV_PYTHON="${WSS_TRIGGER_PATH}/bin/python3"
 if [ ! -f "$WSSTRIGGER_VENV_PYTHON" ]; then
     echo "Creating wssTrigger venv"
     python3 -m venv $WSS_TRIGGER_PATH
