@@ -126,6 +126,9 @@ def fetch_apps(server_url, amace_api_key, dsrcpath, dsrctype):
         print("Getting app list: ", url)
         res = requests.get(url, headers=headers)
         print("Res fetch apps: ", res)
+        if res.status_code == 404:
+            sys.exit(f"Failed to get list of apps to check due to 404 bad URL: {url}")
+
         result = json.loads(res.text)
         print("Results fetch apps: ", result)
         s = result['data']['data']
