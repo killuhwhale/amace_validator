@@ -162,7 +162,7 @@ func YoloDetect(ctx context.Context, hostIP string) (YoloResult, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error response yolo: ", err)
 		return yoloResult, err
 	}
 	defer resp.Body.Close()

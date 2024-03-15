@@ -98,25 +98,18 @@ If you need to delete your chroot, use cros_sdk --delete to delete it properly. 
     Open repo AppValDashboard
 
 
-
-# Start AMACE Validator
-./startCROS.sh
-# Places user in scripts/
-./startAMACE.sh root@192.168.1.122
-# optional url to override Prod url as second arg.
-./startAMACE.sh root@192.168.1.122 http://192.168.1.229:3000/api/amaceResult
-
 # Run Raw Python command
 python3 /home/killuh/chromiumos/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/local/bundles/cros/arc/amace.py   -l  t --dsrcpath AppLists/TestList --dsrctype playstore -d  192.168.1.125
-
+tast -verbose run  -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:2VEKS7H4242 root@192.168.1.192 arc.LoginTest
 
 # Run Raw TAST command
 ## Push data to server(default "https://appval-387223.wl.r.appspot.com/api/amaceResult")
 tast -verbose run  -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
-./startAMACE.sh root@192.168.1.125 http://192.168.1.229:3000/api/amaceResult
 
 ## Push data to localhost (or other url)
 tast -verbose run -var=arc.amace.globalPOSTURL="http://192.168.1.229:3000/api/amaceResult" -var=ui.gaiaPoolDefault=testacct@gmail.com:password root@192.168.1.238 arc.AMACE
+
+tast -verbose run -var=arc.amace.posturl=http://192.168.1.229:3000/api/amaceResult -var=arc.amace.creds={} -var=arc.amace.dsrcpath=AppLists/TestList -var=arc.amace.dsrctype=playstore -var=arc.amace.driveurl= -var=arc.amace.skipamace=f -var=arc.amace.skipbrokencheck=f -var=arc.amace.skiploggin=t -var=arc.amace.device=192.168.1.125 -var=arc.amace.hostip=192.168.1.229 -var=arc.amace.amaceapikey=7cYt4FP9CDDG6i5tX5R3waR/HIwARyAu8KuZKlPhjZU= -var=arc.amace.appsToTest=$'Instagram\tcom.instagram.android\nNetflix\tcom.netflix.mediaclient\nRoblox\tcom.roblox.client' -var=arc.amace.startat= -var=arc.amace.runts=1706307423479 -var=arc.amace.runid=e9d23f6a-464c-4edf-9d9d-cfa1d056c1c2 -var=ui.gaiaPoolDefault=tastarcplusplusappcompat14@gmail.com:2VEKS7H4242 -var=arc.amace.account=tastarcplusplusappcompat14@gmail.com:2VEKS7H4242 192.168.1.125 arc.AMACE
 
 
 

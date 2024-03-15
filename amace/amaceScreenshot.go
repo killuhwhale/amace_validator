@@ -101,7 +101,7 @@ func PostImage(ctx context.Context, image []byte, hostIP, imgPath string) error 
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/", hostIP), body)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error request posting screenshot: ", err)
 		return err
 	}
 
@@ -111,7 +111,7 @@ func PostImage(ctx context.Context, image []byte, hostIP, imgPath string) error 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error response posting screenshot: ", err)
 		return err
 	}
 	defer resp.Body.Close()

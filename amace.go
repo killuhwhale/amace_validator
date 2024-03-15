@@ -586,7 +586,7 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP, killServer string) erro
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/connectADB/", hostIP), body)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error newRequest connectADB: ", err)
 		return err
 	}
 
@@ -596,7 +596,7 @@ func AskToConnectADB(ctx context.Context, hostIP, dutIP, killServer string) erro
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error response connectADB: ", err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -677,7 +677,7 @@ func GetAPK(ctx context.Context, hostIP, fileName, pkgName, driveURL, dutIP stri
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/pythonstore/", hostIP), body)
 	if err != nil {
-		testing.ContextLog(ctx, "Error NewRequest: ", err)
+		testing.ContextLog(ctx, "Error NewRequest pythonstore: ", err)
 		return err
 	}
 
@@ -689,7 +689,7 @@ func GetAPK(ctx context.Context, hostIP, fileName, pkgName, driveURL, dutIP stri
 	testing.ContextLogf(ctx, "POSTing pythonstore resp: %v", resp)
 
 	if err != nil {
-		testing.ContextLog(ctx, "Error unexpected: ", err)
+		testing.ContextLog(ctx, "Error response pythonstore: ", err)
 		return err
 	}
 	defer resp.Body.Close()

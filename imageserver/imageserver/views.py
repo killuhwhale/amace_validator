@@ -27,12 +27,16 @@ Google APIs
 
 # Instantiates a client
 # Set up Google Drive service
-creds = Credentials.from_service_account_info(CONFIG['GOOGLE_APPLICATION_CREDENTIALS_IMAGE_SERVER_STORAGESERVICEACCOUNTKEY'],
-                                              scopes=['https://www.googleapis.com/auth/drive.readonly'])
-service = build('drive', 'v3', credentials=creds)
+# creds = Credentials.from_service_account_info(CONFIG['GOOGLE_APPLICATION_CREDENTIALS_IMAGE_SERVER_STORAGESERVICEACCOUNTKEY'],
+#                                               scopes=['https://www.googleapis.com/auth/drive.readonly'])
+
+
+# ~/.config/gcloud/application_default_credentials.json
+# creds = Credentials.from_service_account_file(filename=CONFIG['ADC'], scopes=['https://www.googleapis.com/auth/drive.readonly'])
+service = build('drive', 'v3') # ADC via gcloud auth application-default login
 
 # Set up Google Cloud Storage service
-storage_client = storage.Client()
+storage_client = storage.Client() # ADC via gcloud auth application-default login
 
 # Get all environment variables
 def print_env():
@@ -66,7 +70,7 @@ def find_transport_id(ip_address)-> str:
                 @ip_adress
 
     '''
-    cmd = ('adb', 'devices', '-l')
+    cmd = (CONFIG['IMAGE_SERVER_ADB_PATH'], 'devices', '-l')
     outstr = subprocess.run(cmd, check=True, encoding='utf-8', capture_output=True).stdout.strip()
     # Split the output into a list of lines
     lines = outstr.split("\n")
@@ -290,12 +294,16 @@ class YoloViewSet(APIView):
 
 class ImageViewSet(APIView):
     def post(self, req, format=None):
-        # print(dir(req))
-        print(req.data)
-        print(req.FILES)
-
-        img = req.FILES['image']
-        path = req.data['imgPath']
+        print(f"{req.data=}")
+        print(f"{req.FILES=}")
+        test = f"{req.data=}, {req.FILES=}"
+        img, path = "", ""
+        try:
+            img = req.FILES['image']
+            path = req.data['imgPath']
+        except Exception as err:
+            print("Error: ", err)
+            return Response({"success": False, "err": str(err), "test": test})
 
 
         # The ID of your GCS bucket

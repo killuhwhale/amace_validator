@@ -46,14 +46,14 @@ def encode_jwt(payload, secret, algorithm='HS512'):
 def get_server_wss_url():
     # uri = "ws://localhost:3001/wss/"
     # uri = "wss://appvaldashboard.com/wss/"
-
     SERVER_IP = CONFIG["WSS_SERVER_IP"]
     ip_addr = CONFIG["WSS_SERVER_IP"]
+
 
     if ":" in ip_addr:
         ip_addr, port = ip_addr.split(":")
 
-    if ip_addr.lower() == "localhost":
+    if ip_addr.lower() in ["localhost", "127.0.0.1", "0.0.0.0"]:
         return f"ws://{SERVER_IP}/wss/"
 
     ip = ipaddress.ip_address(ip_addr)
