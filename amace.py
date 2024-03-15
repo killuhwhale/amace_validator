@@ -125,8 +125,9 @@ def fetch_apps(server_url, amace_api_key, dsrcpath, dsrctype):
         url = f"{server_url}/api/applist?dsrctype={dsrctype}&dsrcpath={dsrcpath}"
         print("Getting app list: ", url)
         res = requests.get(url, headers=headers)
+        print("Res fetch apps: ", res)
         result = json.loads(res.text)
-        print("Reults fetch apps: ", result)
+        print("Results fetch apps: ", result)
         s = result['data']['data']
 
         driveURL = ""
