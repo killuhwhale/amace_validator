@@ -308,7 +308,7 @@ func AMACE(ctx context.Context, s *testing.State) {
 
 			// TODO() if status == Failed to install check playstore
 
-			packageExists, err := amace.CheckPackageExists(appPack.Pname)
+			packageExists, err := amace.CheckPackageExists(s, appPack.Pname)
 			if err != nil {
 				s.Log("Error checking if package exists: ", err)
 
