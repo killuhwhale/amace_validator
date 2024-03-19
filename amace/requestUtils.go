@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"go.chromium.org/tast/core/testing"
+	"golang.org/x/net/html"
 )
 
 type requestBody struct {
@@ -89,4 +91,65 @@ func PostData(appResult AppResult, s *testing.State, postURL, buildInfo, secret,
 		return "", err
 	}
 	return string(body), nil
+}
+
+func CheckPackageExists(s *testing.State, packageName string) (bool, error) {
+	s.Log(" Check Play Store to see if package exists: ", packageName)
+
+	// return "Test Response", nil
+	// Create a new POST request with the JSON data
+	url := fmt.Sprintf("https://play.google.com/store/apps/details?id=%s", packageName)
+	s.Log("Posting to: ", url)
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Printf("Failed to create the request: %v\n", err)
+		return false, err
+	}
+
+	// Set the Content-Type header
+	request.Header.Set("Content-Type", "text/html")
+
+	// Send the GET request
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		fmt.Printf("Failed to make the request: %v\n", err)
+		return false, err
+	}
+	defer response.Body.Close()
+
+	// Parse the HTML document
+	doc, err := html.Parse(response.Body)
+	if err != nil {
+		fmt.Printf("Failed to parse the HTML document: %v\n", err)
+		return false, err
+	}
+
+	// Initialize the flag as false
+	isInvalid := false
+
+	// Define a recursive function to traverse the parsed HTML tree
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "div" {
+			for _, a := range n.Attr {
+				if a.Key == "id" && a.Val == "error-section" {
+					for c := n.FirstChild; c != nil; c = c.NextSibling {
+						if c.Type == html.TextNode && strings.Contains(c.Data, "We're sorry, the requested URL was not found on this server.") {
+							isInvalid = true
+							return
+						}
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+
+	// Start traversing the document
+	traverse(doc)
+
+	return isInvalid, nil
 }

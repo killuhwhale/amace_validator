@@ -61,10 +61,12 @@ type AppStatus int
 const (
 	// Fail indicates failure
 	Fail AppStatus = 0 // 0
-	// Fail indicates failure
+	// LaunchFail indicates app failed to launch
 	LaunchFail = 1 // 1
-	// Fail indicates failure
+	// Crashed indicates app crashed
 	Crashed = 2 // 2
+	// DNE indicates app does not exist
+	DNE = 3 // 2
 	// PRICE indicates needs purchase
 	PRICE = 10 // 10
 	// PRICE indicates needs purchase

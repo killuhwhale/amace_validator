@@ -305,6 +305,20 @@ func AMACE(ctx context.Context, s *testing.State) {
 		if failedToInstall {
 			testing.ContextLogf(ctx, "failedToInstall appz: %s , Status= %s", appPack.Pname, status)
 			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
+
+			// TODO() if status == Failed to install check playstore
+
+			packageExists, err := amace.CheckPackageExists(appPack.Pname)
+			if err != nil {
+				s.Log("Error checking if package exists: ", err)
+
+			}
+
+			// Update status
+			if !packageExists {
+				status = amace.DNE
+			}
+
 			res, err := amace.PostData(
 				amace.AppResult{App: appPack, RunID: runID.Value(), RunTS: RunTS, AppTS: appTS, Status: status, BrokenStatus: amace.FailedInstall, AppType: amace.APP, AppVersion: "", AppHistory: &appHistory, Logs: finalLogs, DSrcPath: dSrcPath.Value()},
 				s, postURL.Value(), buildInfo, amaceAPIKey.Value(), deviceInfo)
