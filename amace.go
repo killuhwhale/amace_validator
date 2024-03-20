@@ -305,7 +305,9 @@ func AMACE(ctx context.Context, s *testing.State) {
 		if failedToInstall {
 			testing.ContextLogf(ctx, "failedToInstall appz: %s , Status= %s", appPack.Pname, status)
 			amace.AddHistoryWithImage(ctx, tconn, &appHistory, deviceInfo, appPack.Pname, "App failed to install.", runID.Value(), hostIP.Value(), false)
-
+			// >>>> Failed to install app: com.community.oneroom - err: too many attempts
+			// >>>> Failed to install app: com.community.oneroom , Status= Installfail, Error: too many attempts
+			// >>>> failedToInstall appz: com.community.oneroom , Status= Installfail
 			// TODO() if status == Failed to install check playstore
 
 			packageExists, err := amace.CheckPackageExists(s, appPack.Pname)

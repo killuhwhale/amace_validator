@@ -72,7 +72,7 @@ func PostImage(ctx context.Context, image []byte, hostIP, imgPath string) error 
 	// get Image from device in another function
 	// Send image to server to recv w/ RUNID
 	// Once image is grabbed and successfully sent, upload to DATABASE via runID
-	testing.ContextLogf(ctx, "Host ip: %s => %s", hostIP, imgPath)
+	testing.ContextLogf(ctx, "PostImage Host ip: %s => %s", hostIP, imgPath)
 
 	// Create a new multipart buffer
 	body := new(bytes.Buffer)
@@ -127,7 +127,7 @@ func PostImage(ctx context.Context, image []byte, hostIP, imgPath string) error 
 	}
 
 	bodyString := string(bodyBytes)
-	testing.ContextLog(ctx, "Host response: ", bodyString)
+	testing.ContextLog(ctx, "PostImage Host response: ", bodyString)
 
 	return nil
 }

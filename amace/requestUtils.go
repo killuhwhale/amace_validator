@@ -125,23 +125,16 @@ func CheckPackageExists(s *testing.State, packageName string) (bool, error) {
 		return false, err
 	}
 
-	// Initialize the flag as false
-	isInvalid := false
+	// Initialize the flag
+	isValid := true
 
 	// Define a recursive function to traverse the parsed HTML tree
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "div" {
-			for _, a := range n.Attr {
-				if a.Key == "id" && a.Val == "error-section" {
-					for c := n.FirstChild; c != nil; c = c.NextSibling {
-						if c.Type == html.TextNode && strings.Contains(c.Data, "We're sorry, the requested URL was not found on this server.") {
-							isInvalid = true
-							return
-						}
-					}
-				}
-			}
+		if strings.Contains(n.Data, "We're sorry, the requested URL was not found on this server.") {
+			s.Logf("Found HTML: %v, %v", n.Type, n.Data)
+			isValid = false
+			return
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			traverse(c)
@@ -150,6 +143,6 @@ func CheckPackageExists(s *testing.State, packageName string) (bool, error) {
 
 	// Start traversing the document
 	traverse(doc)
-
-	return isInvalid, nil
+	s.Logf("CheckPackageExists: %s isValid: %v", packageName, isValid)
+	return isValid, nil
 }
